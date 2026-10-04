@@ -5,7 +5,7 @@
 [![Darstellungen](https://img.shields.io/badge/Darstellungen-ab%208.0-0a6ebd.svg)](https://www.symcon.de/de/service/dokumentation/entwicklerbereich/sdk-tools/sdk-php/darstellungen/)
 [![Kachel](https://img.shields.io/badge/Kachel-HTML--SDK-22b14c.svg)](https://www.symcon.de/de/service/dokumentation/entwicklerbereich/sdk-tools/sdk-php/html-sdk/)
 [![PHP](https://img.shields.io/badge/PHP-8.0%2B-777bb4.svg)](https://www.php.net)
-[![Version](https://img.shields.io/badge/Version-3.0-green.svg)](#changelog)
+[![Version](https://img.shields.io/badge/Version-3.1-green.svg)](#changelog)
 [![Lizenz](https://img.shields.io/badge/Lizenz-MIT-lightgrey.svg)](LICENSE)
 [![Daten](https://img.shields.io/badge/Daten-Tankerk%C3%B6nig%20CC%20BY%204.0-orange.svg)](https://creativecommons.tankerkoenig.de)
 [![GitHub](https://img.shields.io/badge/GitHub-cfaf2002%2FTankstelle__Symcon-181717.svg?logo=github)](https://github.com/cfaf2002/Tankstelle_Symcon)
@@ -182,6 +182,11 @@ für Hausautomation höchstens alle 5 Minuten mit zufälligem Zeitversatz, Umkre
 Bitte den eigenen API-Key **nicht** im Repository oder in Foren veröffentlichen.
 
 ## Changelog
+
+### 3.1
+- Kachel: Seitenabstand bündig zum Titel, Symcon-Schrift (Poppins) im Kachelrahmen, Trend direkt am Preis
+- Breite Kachel: Kennzahlen Ø im Umkreis, Ø Deutschland, teuerste Station, letzte Preisänderung
+- Preisspanne: Markierungen an den Enden nicht mehr abgeschnitten
 
 ### 3.0
 - API v4: alle Sorten, die Tankerkönig liefert (inkl. Super Plus, LPG, CNG), Preistrend, Öffnungszeiten
