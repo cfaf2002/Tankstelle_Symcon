@@ -17,6 +17,12 @@ class Tankstellen extends IPSModule
     private const FUEL_LABELS   = [0 => 'Super E5', 1 => 'Super E10', 2 => 'Diesel'];
     private const MIN_INTERVAL  = 5;   // Tankerkönig: nicht öfter als alle 5 Minuten abfragen
     private const MAX_RADIUS    = 25;  // Tankerkönig: max. 25 km
+    private const LOCATION_CONTROL = '{45E97A63-F870-408A-B259-2933F7EABF74}'; // Symcon Location Control
+
+    // Standortquellen
+    private const SOURCE_SYMCON = 0;   // Standort aus Symcon (Location Control)
+    private const SOURCE_CUSTOM = 1;   // eigener Standort per Karte
+    private const SOURCE_PLZ    = 2;   // Postleitzahl
 
     // Status-Codes
     private const STATUS_NO_KEY        = 201;
@@ -28,10 +34,13 @@ class Tankstellen extends IPSModule
     {
         parent::Create();
 
+        // Aktiv-Schalter
+        $this->RegisterPropertyBoolean('Active', true);
+
         // Zugang & Standort
         $this->RegisterPropertyString('APIKey', '');
-        $this->RegisterPropertyFloat('Latitude', 0.0);
-        $this->RegisterPropertyFloat('Longitude', 0.0);
+        $this->RegisterPropertyInteger('LocationSource', self::SOURCE_SYMCON);
+        $this->RegisterPropertyString('Location', json_encode($this->ReadSymconLocation() ?? ['latitude' => 0, 'longitude' => 0]));
         $this->RegisterPropertyString('PLZ', '');
         $this->RegisterPropertyInteger('Radius', 5);
 
@@ -91,9 +100,12 @@ class Tankstellen extends IPSModule
             $this->SetValue('FuelType', $this->ReadPropertyInteger('DefaultFuel'));
         }
 
-        // Validierung
+        // Aktiv-Schalter und Validierung
         if (!$this->ValidateConfig()) {
             $this->SetTimerInterval('Update', 0);
+            if (!$this->ReadPropertyBoolean('Active') && IPS_GetKernelRunlevel() === KR_READY) {
+                $this->RenderAll($this->BuildResult([], $this->Translate('Instanz ist deaktiviert.')));
+            }
             return;
         }
 
@@ -125,7 +137,9 @@ class Tankstellen extends IPSModule
                     throw new Exception($this->Translate('Ungültige Kraftstoffart'));
                 }
                 $this->SetValue('FuelType', $value);
-                $this->Update();
+                if ($this->ReadPropertyBoolean('Active')) {
+                    $this->Update();
+                }
                 break;
 
             case 'TileFuel':
@@ -154,7 +168,7 @@ class Tankstellen extends IPSModule
         $location = $this->ResolveLocation();
         if ($location === null) {
             $this->SetStatus(self::STATUS_NO_LOCATION);
-            $this->RenderAll($this->BuildResult([], $this->Translate('Kein Standort – bitte Koordinaten oder PLZ eintragen.')));
+            $this->RenderAll($this->BuildResult([], $this->Translate('Kein Standort – bitte Standort in Symcon, auf der Karte oder per PLZ festlegen.')));
             return false;
         }
 
@@ -231,7 +245,7 @@ class Tankstellen extends IPSModule
     }
 
     /**
-     * Ermittelt Koordinaten aus der PLZ und zeigt sie im Konfigurationsformular an.
+     * Prüft eine PLZ und zeigt die gefundenen Koordinaten an (Button im Formular).
      */
     public function LookupPLZ(string $PLZ): void
     {
@@ -240,9 +254,45 @@ class Tankstellen extends IPSModule
             echo $this->Translate('Für diese PLZ wurde kein Standort gefunden.');
             return;
         }
-        $this->UpdateFormField('Latitude', 'value', $coords['lat']);
-        $this->UpdateFormField('Longitude', 'value', $coords['lon']);
-        echo sprintf($this->Translate('Gefunden: %s, %s – zum Übernehmen „Änderungen übernehmen“ klicken.'), $coords['lat'], $coords['lon']);
+        echo sprintf($this->Translate('PLZ %s gefunden: %s, %s'), trim($PLZ), $coords['lat'], $coords['lon']);
+    }
+
+    /**
+     * Blendet je nach Standortquelle die passenden Felder im Formular ein.
+     */
+    public function UpdateLocationForm(int $Source): void
+    {
+        $this->UpdateFormField('SymconLocationInfo', 'visible', $Source === self::SOURCE_SYMCON);
+        $this->UpdateFormField('Location', 'visible', $Source === self::SOURCE_CUSTOM);
+        $this->UpdateFormField('PLZRow', 'visible', $Source === self::SOURCE_PLZ);
+    }
+
+    public function GetConfigurationForm()
+    {
+        $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true);
+        $source = $this->ReadPropertyInteger('LocationSource');
+
+        $symcon = $this->ReadSymconLocation();
+        $info = $symcon !== null
+            ? sprintf($this->Translate('Symcon-Standort: %s, %s'), round($symcon['latitude'], 5), round($symcon['longitude'], 5))
+            : $this->Translate('Kein Symcon-Standort gefunden. Bitte unter Kern-Instanzen → Location Control festlegen oder eine andere Quelle wählen.');
+
+        $this->WalkForm($form['elements'], function (array &$el) use ($source, $info) {
+            switch ($el['name'] ?? '') {
+                case 'SymconLocationInfo':
+                    $el['caption'] = $info;
+                    $el['visible'] = $source === self::SOURCE_SYMCON;
+                    break;
+                case 'Location':
+                    $el['visible'] = $source === self::SOURCE_CUSTOM;
+                    break;
+                case 'PLZRow':
+                    $el['visible'] = $source === self::SOURCE_PLZ;
+                    break;
+            }
+        });
+
+        return json_encode($form);
     }
 
     public function GetVisualizationTile()
@@ -261,6 +311,10 @@ class Tankstellen extends IPSModule
 
     private function ValidateConfig(): bool
     {
+        if (!$this->ReadPropertyBoolean('Active')) {
+            $this->SetStatus(IS_INACTIVE);
+            return false;
+        }
         $key = trim($this->ReadPropertyString('APIKey'));
         if ($key === '') {
             $this->SetStatus(self::STATUS_NO_KEY);
@@ -280,13 +334,57 @@ class Tankstellen extends IPSModule
 
     private function ResolveLocation(): ?array
     {
-        $lat = $this->ReadPropertyFloat('Latitude');
-        $lon = $this->ReadPropertyFloat('Longitude');
-        if ($lat != 0.0 && $lon != 0.0) {
-            return ['lat' => $lat, 'lon' => $lon];
-        }
+        switch ($this->ReadPropertyInteger('LocationSource')) {
+            case self::SOURCE_SYMCON:
+                $loc = $this->ReadSymconLocation();
+                return $loc !== null ? ['lat' => $loc['latitude'], 'lon' => $loc['longitude']] : null;
 
-        $plz = trim($this->ReadPropertyString('PLZ'));
+            case self::SOURCE_CUSTOM:
+                $loc = $this->ParseLocation($this->ReadPropertyString('Location'));
+                return $loc !== null ? ['lat' => $loc['latitude'], 'lon' => $loc['longitude']] : null;
+
+            case self::SOURCE_PLZ:
+                return $this->ResolvePLZ(trim($this->ReadPropertyString('PLZ')));
+        }
+        return null;
+    }
+
+    /**
+     * Liest den in Symcon hinterlegten Standort (Kern-Instanz „Location Control“).
+     */
+    private function ReadSymconLocation(): ?array
+    {
+        if (!function_exists('IPS_GetInstanceListByModuleID')) {
+            return null;
+        }
+        foreach (IPS_GetInstanceListByModuleID(self::LOCATION_CONTROL) as $id) {
+            $loc = $this->ParseLocation((string) @IPS_GetProperty($id, 'Location'));
+            if ($loc !== null) {
+                return $loc;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Wandelt das Symcon-Standortformat {"latitude":…,"longitude":…} in ein Array um.
+     */
+    private function ParseLocation(string $json): ?array
+    {
+        $d = json_decode($json, true);
+        if (!is_array($d) || !isset($d['latitude'], $d['longitude'])) {
+            return null;
+        }
+        $lat = (float) $d['latitude'];
+        $lon = (float) $d['longitude'];
+        if (($lat == 0.0 && $lon == 0.0) || abs($lat) > 90 || abs($lon) > 180) {
+            return null;
+        }
+        return ['latitude' => $lat, 'longitude' => $lon];
+    }
+
+    private function ResolvePLZ(string $plz): ?array
+    {
         if ($plz === '') {
             return null;
         }
@@ -302,6 +400,17 @@ class Tankstellen extends IPSModule
             $this->WriteAttributeString('GeoCache', json_encode([$plz => $coords]));
         }
         return $coords;
+    }
+
+    private function WalkForm(array &$elements, callable $fn): void
+    {
+        foreach ($elements as &$el) {
+            $fn($el);
+            if (isset($el['items']) && is_array($el['items'])) {
+                $this->WalkForm($el['items'], $fn);
+            }
+        }
+        unset($el);
     }
 
     private function Geocode(string $plz): ?array

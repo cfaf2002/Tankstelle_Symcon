@@ -25,7 +25,8 @@ optionaler HTML-Box und Preisalarm.
 ## Funktionen
 
 - Preise für **Super E5, Super E10 und Diesel** im Umkreis von 1–25 km
-- Standort per **Koordinaten** oder automatisch aus der **Postleitzahl** (OpenStreetMap/Nominatim, Ergebnis wird zwischengespeichert)
+- Standort direkt aus dem **Symcon-Standort** (Location Control), alternativ per **Karte** oder **Postleitzahl** (OpenStreetMap/Nominatim, Ergebnis wird zwischengespeichert)
+- **Aktiv-Schalter** zum Pausieren der Instanz ohne Löschen
 - Kraftstoff umschaltbar über eine Variable mit Aktion – oder direkt in der Kachel
 - Günstigste Tankstelle als eigene Variablen (Preis, Name, Adresse, Entfernung) – archivierbar für Preisverläufe
 - Durchschnitts- und Höchstpreis, Anzahl Tankstellen
@@ -53,9 +54,10 @@ Danach eine neue Instanz **Tankstellen** anlegen.
 
 | Einstellung | Beschreibung |
 |---|---|
+| Aktiv | Schaltet Abfrage und Timer ein bzw. aus (Status „inaktiv“) |
 | Tankerkönig API-Key | Persönlicher Schlüssel (wird verdeckt gespeichert) |
-| Breitengrad / Längengrad | Standort; haben Vorrang vor der PLZ |
-| Postleitzahl | Wird genutzt, wenn keine Koordinaten eingetragen sind. Der Button übernimmt die gefundenen Koordinaten ins Formular. |
+| Standortquelle | **Symcon-Standort** (Standard): Breiten- und Längengrad aus Kern-Instanzen → Location Control, Änderungen dort greifen automatisch<br>**Eigener Standort**: Punkt auf der Karte wählen<br>**Postleitzahl**: Koordinaten werden über OpenStreetMap ermittelt |
+| Postleitzahl | Nur bei Quelle „Postleitzahl“; der Button prüft die PLZ |
 | Suchradius | 1–25 km (Grenze der API) |
 | Standard-Kraftstoff | Startwert der Variable *Kraftstoff* |
 | Aktualisierungsintervall | Mindestens 5 Minuten (Vorgabe von Tankerkönig) |

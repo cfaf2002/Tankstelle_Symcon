@@ -1,6 +1,11 @@
 {
     "elements": [
         {
+            "type": "CheckBox",
+            "name": "Active",
+            "caption": "Aktiv"
+        },
+        {
             "type": "ExpansionPanel",
             "caption": "Zugang",
             "expanded": true,
@@ -23,21 +28,50 @@
             "expanded": true,
             "items": [
                 {
-                    "type": "Label",
-                    "caption": "Koordinaten haben Vorrang. Bleiben sie leer (0), wird der Standort aus der PLZ ermittelt."
-                },
-                {
-                    "type": "RowLayout",
-                    "items": [
-                        { "type": "NumberSpinner", "name": "Latitude", "caption": "Breitengrad", "digits": 5, "minimum": -90, "maximum": 90 },
-                        { "type": "NumberSpinner", "name": "Longitude", "caption": "Längengrad", "digits": 5, "minimum": -180, "maximum": 180 }
+                    "type": "Select",
+                    "name": "LocationSource",
+                    "caption": "Standortquelle",
+                    "onChange": "TANK_UpdateLocationForm($id, $LocationSource);",
+                    "options": [
+                        {
+                            "caption": "Symcon-Standort (Location Control)",
+                            "value": 0
+                        },
+                        {
+                            "caption": "Eigener Standort (Karte)",
+                            "value": 1
+                        },
+                        {
+                            "caption": "Postleitzahl",
+                            "value": 2
+                        }
                     ]
                 },
                 {
+                    "type": "Label",
+                    "name": "SymconLocationInfo",
+                    "caption": "Symcon-Standort"
+                },
+                {
+                    "type": "SelectLocation",
+                    "name": "Location",
+                    "caption": "Standort"
+                },
+                {
                     "type": "RowLayout",
+                    "name": "PLZRow",
                     "items": [
-                        { "type": "ValidationTextBox", "name": "PLZ", "caption": "Postleitzahl", "validate": "^(\\d{5})?$" },
-                        { "type": "Button", "caption": "Koordinaten aus PLZ ermitteln", "onClick": "TANK_LookupPLZ($id, $PLZ);" }
+                        {
+                            "type": "ValidationTextBox",
+                            "name": "PLZ",
+                            "caption": "Postleitzahl",
+                            "validate": "^(\\d{5})?$"
+                        },
+                        {
+                            "type": "Button",
+                            "caption": "PLZ prüfen",
+                            "onClick": "TANK_LookupPLZ($id, $PLZ);"
+                        }
                     ]
                 },
                 {
@@ -59,9 +93,18 @@
                     "name": "DefaultFuel",
                     "caption": "Standard-Kraftstoff",
                     "options": [
-                        { "caption": "Super E5", "value": 0 },
-                        { "caption": "Super E10", "value": 1 },
-                        { "caption": "Diesel", "value": 2 }
+                        {
+                            "caption": "Super E5",
+                            "value": 0
+                        },
+                        {
+                            "caption": "Super E10",
+                            "value": 1
+                        },
+                        {
+                            "caption": "Diesel",
+                            "value": 2
+                        }
                     ]
                 },
                 {
@@ -77,8 +120,14 @@
                     "name": "SortBy",
                     "caption": "Sortierung der Liste",
                     "options": [
-                        { "caption": "Nach Preis", "value": "price" },
-                        { "caption": "Nach Entfernung", "value": "dist" }
+                        {
+                            "caption": "Nach Preis",
+                            "value": "price"
+                        },
+                        {
+                            "caption": "Nach Entfernung",
+                            "value": "dist"
+                        }
                     ]
                 },
                 {
@@ -99,13 +148,33 @@
             "type": "ExpansionPanel",
             "caption": "Extras",
             "items": [
-                { "type": "CheckBox", "name": "EnableHTMLBox", "caption": "HTML-Box-Variable (für WebFront / ältere Visualisierungen)" },
-                { "type": "CheckBox", "name": "EnableDetails", "caption": "Detailvariablen (Adresse, Entfernung, Ø-Preis, Höchstpreis, Anzahl)" },
+                {
+                    "type": "CheckBox",
+                    "name": "EnableHTMLBox",
+                    "caption": "HTML-Box-Variable (für WebFront / ältere Visualisierungen)"
+                },
+                {
+                    "type": "CheckBox",
+                    "name": "EnableDetails",
+                    "caption": "Detailvariablen (Adresse, Entfernung, Ø-Preis, Höchstpreis, Anzahl)"
+                },
                 {
                     "type": "RowLayout",
                     "items": [
-                        { "type": "CheckBox", "name": "EnableAlert", "caption": "Preisalarm" },
-                        { "type": "NumberSpinner", "name": "AlertThreshold", "caption": "Schwelle", "digits": 3, "suffix": "€", "minimum": 0, "maximum": 5 }
+                        {
+                            "type": "CheckBox",
+                            "name": "EnableAlert",
+                            "caption": "Preisalarm"
+                        },
+                        {
+                            "type": "NumberSpinner",
+                            "name": "AlertThreshold",
+                            "caption": "Schwelle",
+                            "digits": 3,
+                            "suffix": "€",
+                            "minimum": 0,
+                            "maximum": 5
+                        }
                     ]
                 }
             ]
@@ -119,10 +188,35 @@
         }
     ],
     "status": [
-        { "code": 102, "icon": "active", "caption": "Aktiv" },
-        { "code": 201, "icon": "inactive", "caption": "Bitte Tankerkönig API-Key eintragen" },
-        { "code": 202, "icon": "error", "caption": "API-Key ungültig" },
-        { "code": 203, "icon": "error", "caption": "Kein Standort: Koordinaten oder gültige PLZ eintragen" },
-        { "code": 204, "icon": "error", "caption": "Tankerkönig-API nicht erreichbar oder fehlerhafte Antwort" }
+        {
+            "code": 102,
+            "icon": "active",
+            "caption": "Aktiv"
+        },
+        {
+            "code": 104,
+            "icon": "inactive",
+            "caption": "Instanz ist deaktiviert"
+        },
+        {
+            "code": 201,
+            "icon": "inactive",
+            "caption": "Bitte Tankerkönig API-Key eintragen"
+        },
+        {
+            "code": 202,
+            "icon": "error",
+            "caption": "API-Key ungültig"
+        },
+        {
+            "code": 203,
+            "icon": "error",
+            "caption": "Kein Standort: Symcon-Standort, Karte oder PLZ festlegen"
+        },
+        {
+            "code": 204,
+            "icon": "error",
+            "caption": "Tankerkönig-API nicht erreichbar oder fehlerhafte Antwort"
+        }
     ]
 }
