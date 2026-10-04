@@ -1,14 +1,18 @@
 # Tankstellen
 
-[![IP-Symcon](https://img.shields.io/badge/IP--Symcon-7.0%2B-blue.svg)](https://www.symcon.de)
-[![Version](https://img.shields.io/badge/Version-1.0-green.svg)](#changelog)
+[![IP-Symcon](https://img.shields.io/badge/IP--Symcon-7.1%2B-blue.svg)](https://www.symcon.de)
+[![Symcon 9.0](https://img.shields.io/badge/optimiert%20f%C3%BCr-Symcon%209.0-0a6ebd.svg)](https://www.symcon.de)
+[![Darstellungen](https://img.shields.io/badge/Darstellungen-ab%208.0-0a6ebd.svg)](https://www.symcon.de/de/service/dokumentation/entwicklerbereich/sdk-tools/sdk-php/darstellungen/)
+[![Kachel](https://img.shields.io/badge/Kachel-HTML--SDK-22b14c.svg)](https://www.symcon.de/de/service/dokumentation/entwicklerbereich/sdk-tools/sdk-php/html-sdk/)
 [![PHP](https://img.shields.io/badge/PHP-8.0%2B-777bb4.svg)](https://www.php.net)
+[![Version](https://img.shields.io/badge/Version-2.0-green.svg)](#changelog)
 [![Lizenz](https://img.shields.io/badge/Lizenz-MIT-lightgrey.svg)](LICENSE)
 [![Daten](https://img.shields.io/badge/Daten-Tankerk%C3%B6nig%20CC%20BY%204.0-orange.svg)](https://creativecommons.tankerkoenig.de)
+[![GitHub](https://img.shields.io/badge/GitHub-cfaf2002%2FTankstelle__Symcon-181717.svg?logo=github)](https://github.com/cfaf2002/Tankstelle_Symcon)
 
-IP-Symcon-Modul, das aktuelle Spritpreise (Super E5, Super E10, Diesel) aller Tankstellen im Umkreis über die
-[Tankerkönig-API](https://creativecommons.tankerkoenig.de) abruft – mit eigener Kachel für die Kachel-Visualisierung,
-optionaler HTML-Box und Preisalarm.
+IP-Symcon-Modul für aktuelle Spritpreise (**Super E5, Super E10, Diesel**) aller Tankstellen im Umkreis über die
+[Tankerkönig-API](https://creativecommons.tankerkoenig.de) – mit eigener Kachel, Kraftstoffwahl per Klick und
+Standort direkt aus Symcon.
 
 ## Inhalt
 
@@ -19,30 +23,35 @@ optionaler HTML-Box und Preisalarm.
 5. [Variablen](#variablen)
 6. [Kachel](#kachel)
 7. [PHP-Befehle](#php-befehle)
-8. [Hinweise](#hinweise)
-9. [Changelog](#changelog)
+8. [Geschwindigkeit](#geschwindigkeit)
+9. [Sicherheit](#sicherheit)
+10. [Lizenzen und Quellen](#lizenzen-und-quellen)
+11. [Changelog](#changelog)
 
 ## Funktionen
 
-- Preise für **Super E5, Super E10 und Diesel** im Umkreis von 1–25 km
-- Standort direkt aus dem **Symcon-Standort** (Location Control), alternativ per **Karte** oder **Postleitzahl** (OpenStreetMap/Nominatim, Ergebnis wird zwischengespeichert)
-- **Aktiv-Schalter** zum Pausieren der Instanz ohne Löschen
-- Kraftstoff umschaltbar über eine Variable mit Aktion – oder direkt in der Kachel
-- Günstigste Tankstelle als eigene Variablen (Preis, Name, Adresse, Entfernung) – archivierbar für Preisverläufe
-- Durchschnitts- und Höchstpreis, Anzahl Tankstellen
-- **Moderne Kachel** mit Kraftstoff-Umschalter, Top-Tankstelle, Statistik und Liste; passt sich der Kachelgröße an
-- Optionale **HTML-Box** für WebFront und ältere Visualisierungen
-- Optionaler **Preisalarm** (Variable wird `true`, sobald der günstigste Preis unter einer Schwelle liegt)
-- Alle Extras in der Instanz zuschaltbar
+- **Alle Kraftstoffe per Klick:** E5, E10 und Diesel einzeln an- und abwählbar; Umschalten in Kachel oder Variable
+- **Eine Abfrage für alles:** alle Kraftstoffe kommen mit einem einzigen API-Aufruf – Umschalten ohne Wartezeit
+- **Standort aus Symcon** (Location Control), alternativ per Karte oder Postleitzahl
+- **Aktiv-Schalter** zum Pausieren ohne Löschen
+- **Bestpreis je Kraftstoff** als eigene Variable – ideal fürs Archiv und für Preisverläufe
+- Günstigste Tankstelle mit Adresse und Entfernung, Ø- und Höchstpreis, Anzahl Stationen
+- **Kachel nach Symcon-Kachelschema** (HTML-SDK) mit Symcon-Icons, passt sich der Kachelgröße an
+- **Darstellungen** (Symcon 8.0+/9.0) statt Variablenprofile – automatischer Rückfall auf Profile bei älteren Versionen
+- Optionale HTML-Variable (Webinhalt) für WebFront und ältere Visualisierungen
+- Optionaler **Preisalarm** mit einstellbarer Schwelle
+
+> Die Markttransparenzstelle für Kraftstoffe meldet nur **Super E5, Super E10 und Diesel**. Super Plus, LPG oder AdBlue
+> sind dort nicht enthalten und können daher nicht angezeigt werden.
 
 ## Voraussetzungen
 
-- IP-Symcon ab Version 7.0
+- IP-Symcon ab 7.1 (Kachel), empfohlen 8.0 oder neuer (Darstellungen), optimiert für 9.0
 - Kostenloser Tankerkönig-API-Key: <https://creativecommons.tankerkoenig.de>
 
 ## Installation
 
-Über das **Module Control** folgende URL hinzufügen:
+Im **Module Control** folgende URL hinzufügen:
 
 ```
 https://github.com/cfaf2002/Tankstelle_Symcon
@@ -55,74 +64,99 @@ Danach eine neue Instanz **Tankstellen** anlegen.
 | Einstellung | Beschreibung |
 |---|---|
 | Aktiv | Schaltet Abfrage und Timer ein bzw. aus (Status „inaktiv“) |
-| Tankerkönig API-Key | Persönlicher Schlüssel (wird verdeckt gespeichert) |
-| Standortquelle | **Symcon-Standort** (Standard): Breiten- und Längengrad aus Kern-Instanzen → Location Control, Änderungen dort greifen automatisch<br>**Eigener Standort**: Punkt auf der Karte wählen<br>**Postleitzahl**: Koordinaten werden über OpenStreetMap ermittelt |
-| Postleitzahl | Nur bei Quelle „Postleitzahl“; der Button prüft die PLZ |
+| Tankerkönig API-Key | Persönlicher Schlüssel (verdeckte Eingabe) |
+| Standortquelle | **Symcon-Standort** (Standard): aus Kern-Instanzen → Location Control, Änderungen dort greifen automatisch<br>**Eigener Standort**: Punkt auf der Karte wählen<br>**Postleitzahl**: Koordinaten über OpenStreetMap, Ergebnis wird zwischengespeichert |
 | Suchradius | 1–25 km (Grenze der API) |
-| Standard-Kraftstoff | Startwert der Variable *Kraftstoff* |
+| Kraftstoffe | Super E5, Super E10, Diesel per Haken an-/abwählen |
 | Aktualisierungsintervall | Mindestens 5 Minuten (Vorgabe von Tankerkönig) |
 | Sortierung der Liste | Nach Preis oder Entfernung |
 | Nur geöffnete Tankstellen | Geschlossene Stationen ausblenden |
-| Max. Einträge | Begrenzung für Liste in Kachel und HTML-Box (0 = alle) |
-| HTML-Box-Variable | Zuschaltbar |
+| Max. Einträge | Begrenzung für Liste in Kachel und HTML-Variable (0 = alle) |
+| HTML-Variable | Zuschaltbar, für die Kachel nicht nötig |
 | Detailvariablen | Adresse, Entfernung, Ø-Preis, Höchstpreis, Anzahl |
-| Preisalarm + Schwelle | Zuschaltbar, Schwelle in € |
+| Preisalarm + Schwelle | Für den gewählten Kraftstoff, Schwelle in € |
 
 ## Variablen
 
-| Ident | Name | Typ | Profil |
+| Ident | Name | Typ | Darstellung |
 |---|---|---|---|
-| FuelType | Kraftstoff | Integer (Aktion) | TANK.FuelType |
-| CheapestPrice | Günstigster Preis | Float | TANK.Price |
-| CheapestName | Günstigste Tankstelle | String | – |
-| CheapestAddress | Adresse *(Detail)* | String | – |
-| CheapestDistance | Entfernung *(Detail)* | Float | TANK.Distance |
-| AveragePrice | Durchschnittspreis *(Detail)* | Float | TANK.Price |
-| HighestPrice | Höchster Preis *(Detail)* | Float | TANK.Price |
-| StationCount | Anzahl Tankstellen *(Detail)* | Integer | – |
-| HTML | Übersicht *(optional)* | String | ~HTMLBox |
-| PriceAlert | Preis unter Schwelle *(optional)* | Boolean | ~Alert.Reversed |
-| LastUpdate | Letzte Aktualisierung | Integer | ~UnixTimestamp |
+| FuelType | Kraftstoff | Integer (Aktion) | Aufzählung, nebeneinander zum Antippen |
+| CheapestPrice | Günstigster Preis | Float | Wertanzeige, 3 Nachkommastellen, € |
+| CheapestName | Günstigste Tankstelle | String | Wertanzeige |
+| Price_e5 / Price_e10 / Price_diesel | Bestpreis je Kraftstoff | Float | Wertanzeige, € |
+| CheapestAddress | Adresse *(Detail)* | String | Wertanzeige |
+| CheapestDistance | Entfernung *(Detail)* | Float | Wertanzeige, km |
+| AveragePrice | Durchschnittspreis *(Detail)* | Float | Wertanzeige, € |
+| HighestPrice | Höchster Preis *(Detail)* | Float | Wertanzeige, € |
+| StationCount | Anzahl Tankstellen *(Detail)* | Integer | Wertanzeige |
+| HTML | Übersicht *(optional)* | String | Webinhalt |
+| PriceAlert | Preis unter Schwelle *(optional)* | Boolean | Wertanzeige |
+| LastUpdate | Letzte Aktualisierung | Integer | Datum/Uhrzeit |
 
-Tipp: *Günstigster Preis* im Archiv loggen, dann gibt es den Preisverlauf gratis dazu.
+Unter Symcon 7.x werden statt Darstellungen die Profile `TANK.FuelType`, `TANK.Price`, `TANK.Distance` angelegt.
 
 ## Kachel
 
-Die Instanz bringt eine eigene Kachel mit. Einfach die Instanz in der Kachel-Visualisierung hinzufügen.
+Die Instanz bringt eine eigene Kachel mit (HTML-SDK). Einfach die Instanz in der Kachel-Visualisierung hinzufügen.
 
-- Oben: Umschalter E5 / E10 / Diesel und Aktualisieren-Button
+- Oben: Knöpfe für jeden aktivierten Kraftstoff mit aktuellem Bestpreis – ein Klick schaltet **sofort** um
 - Günstigste Tankstelle groß, darunter Ø-Preis, Höchstpreis und Anzahl
-- Scrollbare Liste aller Tankstellen
-- Kleine Kacheln zeigen automatisch nur Preis und Tankstelle
+- Scrollbare Liste aller Tankstellen, geschlossene ausgegraut
+- Passt sich automatisch an: kleine Kacheln zeigen nur Kraftstoff-Knöpfe und Bestpreis
+- Transparenter Hintergrund, Schrift und Farben aus dem Symcon-Theme (hell/dunkel)
 
 ## PHP-Befehle
 
 ```php
-// Preise sofort aktualisieren (liefert true/false)
+// Preise sofort abrufen (true/false)
 TANK_Update(int $InstanzID);
 
-// Letzte Ergebnisliste als Array
-$stations = TANK_GetStations(int $InstanzID);
+// Stationsliste eines Kraftstoffs ("e5", "e10", "diesel" oder leer = gewählter)
+$stations = TANK_GetStations(int $InstanzID, string $Kraftstoff);
 
-// Koordinaten zu einer PLZ ermitteln (im Konfigurationsformular)
-TANK_LookupPLZ(int $InstanzID, string $PLZ);
-
-// Kraftstoff per Skript umschalten (0 = E5, 1 = E10, 2 = Diesel)
+// Kraftstoff umschalten (0 = E5, 1 = E10, 2 = Diesel)
 RequestAction(IPS_GetObjectIDByIdent('FuelType', $InstanzID), 2);
 ```
 
-## Hinweise
+## Geschwindigkeit
 
-- Die Preisdaten stammen von der Markttransparenzstelle für Kraftstoffe (MTS-K) und werden von Tankerkönig unter
-  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.de) bereitgestellt. Der Quellenhinweis wird in Kachel und HTML-Box angezeigt.
-- Tankerkönig bittet darum, nicht häufiger als alle 5 Minuten abzufragen – das Modul erzwingt dieses Minimum.
-- Der API-Key wird im Debug-Fenster maskiert.
+- **Ein API-Aufruf** liefert E5, E10 und Diesel gleichzeitig (`type=all`), statt einem Aufruf pro Kraftstoff
+- Kraftstoffwechsel rechnet aus dem Zwischenspeicher – **kein** neuer Abruf, in der Kachel ohne Server-Rundreise
+- Variablen werden nur geschrieben, wenn sich der Wert ändert (weniger Ereignisse, kleineres Archiv)
+- Komprimierte Übertragung (gzip), kurze Timeouts, PLZ-Koordinaten werden zwischengespeichert
+- HTML-Variable wird nur erzeugt, wenn sie eingeschaltet ist
+
+## Sicherheit
+
+- API-Key in verdeckter Eingabe; im Debug-Fenster wird er maskiert und nie an die Kachel übertragen
+- Nur HTTPS mit Zertifikatsprüfung, keine Weiterleitungen, Antwortgröße begrenzt
+- Alle Texte aus der API werden vor der Ausgabe escaped; die Kachel baut ihre Inhalte per DOM, nicht per HTML-String
+- Aktionen aus der Kachel werden geprüft: nur bekannte Aktionen, nur aktivierte Kraftstoffe
+- Schutz vor Klick-Serien: manuelles Aktualisieren höchstens einmal pro Minute
+- Sperre gegen parallele Abfragen (Timer, Button und Kachel gleichzeitig)
+- Kachel-Kommunikation läuft über das passwortgeschützte HTML-SDK der Visualisierung
+
+## Lizenzen und Quellen
+
+| Bestandteil | Lizenz |
+|---|---|
+| Quellcode dieses Moduls | [MIT](LICENSE) – © 2026 Armin Frohwerk |
+| Preisdaten | Markttransparenzstelle für Kraftstoffe (MTS-K) über [Tankerkönig](https://creativecommons.tankerkoenig.de), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.de) – Quellenhinweis wird in Kachel und HTML-Variable angezeigt |
+| Geocoding (nur Quelle „Postleitzahl“) | © [OpenStreetMap-Mitwirkende](https://www.openstreetmap.org/copyright), [ODbL](https://opendatacommons.org/licenses/odbl/); Nutzung gemäß [Nominatim-Richtlinie](https://operations.osmfoundation.org/policies/nominatim/) (eigener User-Agent, Zwischenspeicher) |
+| Icons | Werden von der Symcon-Visualisierung bereitgestellt |
+
+Bitte den eigenen API-Key **nicht** im Repository oder in Foren veröffentlichen.
 
 ## Changelog
 
+### 2.0
+- Alle Kraftstoffe per Klick an-/abwählbar, Umschalten in Kachel ohne Wartezeit
+- Ein API-Aufruf für alle Kraftstoffe (`type=all`), Zwischenspeicher
+- Bestpreis je Kraftstoff als eigene Variable
+- Darstellungen für Symcon 8.0/9.0, Rückfall auf Profile
+- Kachel nach Symcon-Kachelschema mit Symcon-Icons
+- Aktiv-Schalter, Standort aus Symcon (Location Control), Karte oder PLZ
+- Sicherheit: Maskierung, Eingabeprüfung, Klick-Schutz, Sperre, nur HTTPS
+
 ### 1.0
 - Erste Version als Modul (Ablösung des bisherigen Skripts)
-
-## Lizenz
-
-[MIT](LICENSE) – © 2026 Armin Frohwerk

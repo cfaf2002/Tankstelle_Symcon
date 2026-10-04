@@ -86,27 +86,39 @@
         },
         {
             "type": "ExpansionPanel",
-            "caption": "Abfrage",
+            "caption": "Kraftstoffe",
+            "expanded": true,
             "items": [
                 {
-                    "type": "Select",
-                    "name": "DefaultFuel",
-                    "caption": "Standard-Kraftstoff",
-                    "options": [
+                    "type": "Label",
+                    "caption": "Welche Kraftstoffe sollen angezeigt werden? Alle werden mit einer einzigen Abfrage geholt."
+                },
+                {
+                    "type": "RowLayout",
+                    "items": [
                         {
-                            "caption": "Super E5",
-                            "value": 0
+                            "type": "CheckBox",
+                            "name": "FuelE5",
+                            "caption": "Super E5"
                         },
                         {
-                            "caption": "Super E10",
-                            "value": 1
+                            "type": "CheckBox",
+                            "name": "FuelE10",
+                            "caption": "Super E10"
                         },
                         {
-                            "caption": "Diesel",
-                            "value": 2
+                            "type": "CheckBox",
+                            "name": "FuelDiesel",
+                            "caption": "Diesel"
                         }
                     ]
-                },
+                }
+            ]
+        },
+        {
+            "type": "ExpansionPanel",
+            "caption": "Abfrage",
+            "items": [
                 {
                     "type": "NumberSpinner",
                     "name": "UpdateInterval",
@@ -151,7 +163,7 @@
                 {
                     "type": "CheckBox",
                     "name": "EnableHTMLBox",
-                    "caption": "HTML-Box-Variable (für WebFront / ältere Visualisierungen)"
+                    "caption": "HTML-Variable (WebFront / ältere Visualisierungen – die Kachel braucht sie nicht)"
                 },
                 {
                     "type": "CheckBox",
@@ -164,7 +176,7 @@
                         {
                             "type": "CheckBox",
                             "name": "EnableAlert",
-                            "caption": "Preisalarm"
+                            "caption": "Preisalarm für gewählten Kraftstoff"
                         },
                         {
                             "type": "NumberSpinner",
@@ -184,7 +196,7 @@
         {
             "type": "Button",
             "caption": "Jetzt aktualisieren",
-            "onClick": "if (TANK_Update($id)) { echo 'Preise aktualisiert.'; } else { echo 'Aktualisierung fehlgeschlagen – siehe Meldungen bzw. Debug.'; }"
+            "onClick": "echo TANK_Update($id) ? 'Preise aktualisiert.' : 'Aktualisierung fehlgeschlagen – siehe Status bzw. Debug.';"
         }
     ],
     "status": [
@@ -217,6 +229,11 @@
             "code": 204,
             "icon": "error",
             "caption": "Tankerkönig-API nicht erreichbar oder fehlerhafte Antwort"
+        },
+        {
+            "code": 205,
+            "icon": "error",
+            "caption": "Mindestens einen Kraftstoff aktivieren"
         }
     ]
 }
