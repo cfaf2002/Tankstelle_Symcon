@@ -1,0 +1,128 @@
+{
+    "elements": [
+        {
+            "type": "ExpansionPanel",
+            "caption": "Zugang",
+            "expanded": true,
+            "items": [
+                {
+                    "type": "Label",
+                    "caption": "Einen kostenlosen API-Key gibt es unter https://creativecommons.tankerkoenig.de"
+                },
+                {
+                    "type": "PasswordTextBox",
+                    "name": "APIKey",
+                    "caption": "Tankerkönig API-Key",
+                    "width": "420px"
+                }
+            ]
+        },
+        {
+            "type": "ExpansionPanel",
+            "caption": "Standort",
+            "expanded": true,
+            "items": [
+                {
+                    "type": "Label",
+                    "caption": "Koordinaten haben Vorrang. Bleiben sie leer (0), wird der Standort aus der PLZ ermittelt."
+                },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "NumberSpinner", "name": "Latitude", "caption": "Breitengrad", "digits": 5, "minimum": -90, "maximum": 90 },
+                        { "type": "NumberSpinner", "name": "Longitude", "caption": "Längengrad", "digits": 5, "minimum": -180, "maximum": 180 }
+                    ]
+                },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "ValidationTextBox", "name": "PLZ", "caption": "Postleitzahl", "validate": "^(\\d{5})?$" },
+                        { "type": "Button", "caption": "Koordinaten aus PLZ ermitteln", "onClick": "TANK_LookupPLZ($id, $PLZ);" }
+                    ]
+                },
+                {
+                    "type": "NumberSpinner",
+                    "name": "Radius",
+                    "caption": "Suchradius",
+                    "suffix": "km",
+                    "minimum": 1,
+                    "maximum": 25
+                }
+            ]
+        },
+        {
+            "type": "ExpansionPanel",
+            "caption": "Abfrage",
+            "items": [
+                {
+                    "type": "Select",
+                    "name": "DefaultFuel",
+                    "caption": "Standard-Kraftstoff",
+                    "options": [
+                        { "caption": "Super E5", "value": 0 },
+                        { "caption": "Super E10", "value": 1 },
+                        { "caption": "Diesel", "value": 2 }
+                    ]
+                },
+                {
+                    "type": "NumberSpinner",
+                    "name": "UpdateInterval",
+                    "caption": "Aktualisierungsintervall",
+                    "suffix": "Minuten",
+                    "minimum": 5,
+                    "maximum": 1440
+                },
+                {
+                    "type": "Select",
+                    "name": "SortBy",
+                    "caption": "Sortierung der Liste",
+                    "options": [
+                        { "caption": "Nach Preis", "value": "price" },
+                        { "caption": "Nach Entfernung", "value": "dist" }
+                    ]
+                },
+                {
+                    "type": "CheckBox",
+                    "name": "OnlyOpen",
+                    "caption": "Nur geöffnete Tankstellen"
+                },
+                {
+                    "type": "NumberSpinner",
+                    "name": "MaxEntries",
+                    "caption": "Max. Einträge in Liste/Kachel (0 = alle)",
+                    "minimum": 0,
+                    "maximum": 100
+                }
+            ]
+        },
+        {
+            "type": "ExpansionPanel",
+            "caption": "Extras",
+            "items": [
+                { "type": "CheckBox", "name": "EnableHTMLBox", "caption": "HTML-Box-Variable (für WebFront / ältere Visualisierungen)" },
+                { "type": "CheckBox", "name": "EnableDetails", "caption": "Detailvariablen (Adresse, Entfernung, Ø-Preis, Höchstpreis, Anzahl)" },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "CheckBox", "name": "EnableAlert", "caption": "Preisalarm" },
+                        { "type": "NumberSpinner", "name": "AlertThreshold", "caption": "Schwelle", "digits": 3, "suffix": "€", "minimum": 0, "maximum": 5 }
+                    ]
+                }
+            ]
+        }
+    ],
+    "actions": [
+        {
+            "type": "Button",
+            "caption": "Jetzt aktualisieren",
+            "onClick": "if (TANK_Update($id)) { echo 'Preise aktualisiert.'; } else { echo 'Aktualisierung fehlgeschlagen – siehe Meldungen bzw. Debug.'; }"
+        }
+    ],
+    "status": [
+        { "code": 102, "icon": "active", "caption": "Aktiv" },
+        { "code": 201, "icon": "inactive", "caption": "Bitte Tankerkönig API-Key eintragen" },
+        { "code": 202, "icon": "error", "caption": "API-Key ungültig" },
+        { "code": 203, "icon": "error", "caption": "Kein Standort: Koordinaten oder gültige PLZ eintragen" },
+        { "code": 204, "icon": "error", "caption": "Tankerkönig-API nicht erreichbar oder fehlerhafte Antwort" }
+    ]
+}

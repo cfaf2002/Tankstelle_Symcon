@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+    :root {
+        --accent: #22b14c;
+        --accent-soft: rgba(34, 177, 76, .16);
+        --muted: rgba(127, 127, 127, .9);
+        --line: rgba(127, 127, 127, .18);
+        --chip: rgba(127, 127, 127, .14);
+        --error: #e5484d;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+        margin: 0; height: 100%;
+        font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+        background: transparent; color: inherit;
+        -webkit-font-smoothing: antialiased;
+    }
+    body { container-type: size; overflow: hidden; }
+    .wrap { height: 100%; display: flex; flex-direction: column; padding: 4px 6px; gap: 8px; }
+
+    .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .chips { display: flex; gap: 4px; flex-wrap: wrap; }
+    .chip {
+        border: 0; cursor: pointer; font: inherit; font-size: 12px; font-weight: 600;
+        padding: 4px 10px; border-radius: 999px; background: var(--chip); color: inherit;
+        transition: background .15s, color .15s;
+    }
+    .chip.on { background: var(--accent); color: #fff; }
+    .refresh {
+        border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 15px;
+        padding: 2px 4px; line-height: 1;
+    }
+    .refresh.spin { animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .hero {
+        border-radius: 14px; padding: 12px 14px;
+        background: linear-gradient(135deg, var(--accent-soft), rgba(34, 177, 76, .04));
+        border: 1px solid rgba(34, 177, 76, .25);
+    }
+    .hero .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+    .hero .row { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; }
+    .hero .name { font-size: 17px; font-weight: 700; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hero .addr { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hero .price { font-size: 34px; font-weight: 800; line-height: 1; color: var(--accent); white-space: nowrap; }
+    sup { font-size: .55em; vertical-align: .75em; margin-left: 1px; }
+    .alert { display: inline-block; margin-top: 6px; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--accent); color: #fff; }
+
+    .stats { display: flex; gap: 6px; }
+    .stat { flex: 1; background: var(--chip); border-radius: 10px; padding: 6px 8px; min-width: 0; }
+    .stat .v { font-size: 14px; font-weight: 700; white-space: nowrap; }
+    .stat .l { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+
+    .list { flex: 1; overflow-y: auto; margin: 0 -2px; padding: 0 2px; scrollbar-width: thin; }
+    .item { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: center; padding: 7px 2px; border-top: 1px solid var(--line); }
+    .item:first-child { border-top: 0; }
+    .item .rk { font-size: 12px; font-weight: 700; color: var(--muted); text-align: center; }
+    .item .n { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .item .s { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .item .p { font-size: 15px; font-weight: 700; text-align: right; white-space: nowrap; }
+    .item .d { font-size: 11px; color: var(--muted); text-align: right; }
+    .item.best .p { color: var(--accent); }
+    .item.closed { opacity: .45; }
+
+    .msg { padding: 10px 12px; border-radius: 10px; font-size: 13px; background: var(--chip); }
+    .msg.err { background: rgba(229, 72, 77, .14); color: var(--error); }
+    .foot { font-size: 10px; color: var(--muted); display: flex; justify-content: space-between; gap: 6px; }
+
+    /* Kleine Kacheln: nur das Wesentliche */
+    @container (max-height: 260px) { .list, .stats { display: none; } }
+    @container (max-height: 170px) { .hero .addr, .foot { display: none; } .hero .price { font-size: 28px; } }
+    @container (max-width: 260px) { .hero .row { flex-direction: column; align-items: flex-start; } .chip { padding: 3px 7px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <div class="top">
+        <div class="chips" id="chips"></div>
+        <button class="refresh" id="refresh" title="Aktualisieren">⟳</button>
+    </div>
+    <div id="content"></div>
+    <div class="list" id="list"></div>
+    <div class="foot"><span id="updated"></span><span>Tankerkönig · CC BY 4.0</span></div>
+</div>
+
+<script>
+    const FUELS = ['E5', 'E10', 'Diesel'];
+    let current = -1;
+
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const price = (p) => {
+        if (p === null || p === undefined) return '–';
+        const s = Number(p).toFixed(3);
+        return s.slice(0, -1).replace('.', ',') + '<sup>' + s.slice(-1) + '</sup> €';
+    };
+    const km = (d) => Number(d).toFixed(1).replace('.', ',') + ' km';
+    const title = (s) => s.brand ? s.brand : s.name;
+
+    function renderChips() {
+        const box = document.getElementById('chips');
+        box.innerHTML = '';
+        FUELS.forEach((f, i) => {
+            const b = document.createElement('button');
+            b.className = 'chip' + (i === current ? ' on' : '');
+            b.textContent = f;
+            b.onclick = () => {
+                if (i === current) return;
+                current = i; renderChips(); setLoading(true);
+                requestAction('TileFuel', i);
+            };
+            box.appendChild(b);
+        });
+    }
+
+    function setLoading(on) {
+        document.getElementById('refresh').classList.toggle('spin', on);
+    }
+
+    document.getElementById('refresh').onclick = () => { setLoading(true); requestAction('TileRefresh', true); };
+
+    function handleMessage(raw) {
+        let d;
+        try { d = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch (e) { return; }
+        if (!d) return;
+        setLoading(false);
+
+        current = d.fuelIndex ?? 0;
+        renderChips();
+
+        const content = document.getElementById('content');
+        const list = document.getElementById('list');
+        let html = '';
+
+        if (d.error) html += '<div class="msg err">' + esc(d.error) + '</div>';
+
+        const c = d.cheapest;
+        if (c) {
+            const alertHtml = (d.threshold !== null && d.threshold !== undefined && c.price <= d.threshold)
+                ? '<span class="alert">unter ' + price(d.threshold) + '</span>' : '';
+            html += '<div class="hero"><div class="lbl">Günstigste · ' + esc(d.fuel) + ' · ' + esc(d.radius) + ' km</div>'
+                + '<div class="row"><div style="min-width:0"><div class="name">' + esc(title(c)) + '</div>'
+                + '<div class="addr">' + esc(c.address) + ' · ' + km(c.distance) + '</div>' + alertHtml + '</div>'
+                + '<div class="price">' + price(c.price) + '</div></div></div>';
+            html += '<div class="stats">'
+                + '<div class="stat"><div class="v">' + price(d.avg) + '</div><div class="l">Ø Preis</div></div>'
+                + '<div class="stat"><div class="v">' + price(d.max) + '</div><div class="l">Teuerste</div></div>'
+                + '<div class="stat"><div class="v">' + esc(d.count) + '</div><div class="l">Stationen</div></div>'
+                + '</div>';
+
+            list.innerHTML = (d.stations || []).map((s, i) =>
+                '<div class="item' + (s.id === c.id ? ' best' : '') + (s.isOpen ? '' : ' closed') + '">'
+                + '<div class="rk">' + (i + 1) + '</div>'
+                + '<div style="min-width:0"><div class="n">' + esc(title(s)) + '</div><div class="s">' + esc(s.address) + '</div></div>'
+                + '<div><div class="p">' + price(s.price) + '</div><div class="d">' + km(s.distance) + '</div></div>'
+                + '</div>').join('');
+        } else {
+            if (!d.error) html += '<div class="msg">Keine passenden Tankstellen gefunden.</div>';
+            list.innerHTML = '';
+        }
+
+        content.innerHTML = html;
+
+        if (d.updated) {
+            const t = new Date(d.updated * 1000);
+            document.getElementById('updated').textContent = 'Stand ' + t.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+        }
+    }
+</script>
+</body>
+</html>

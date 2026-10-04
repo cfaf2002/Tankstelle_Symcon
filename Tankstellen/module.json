@@ -1,0 +1,16 @@
+{
+    "id": "{688B2E6E-B988-4FA2-8FF7-DA35E488B1D2}",
+    "name": "Tankstellen",
+    "type": 3,
+    "vendor": "Tankerkönig",
+    "aliases": [
+        "Tankstellen",
+        "Spritpreise",
+        "Tankerkönig"
+    ],
+    "url": "https://github.com/cfaf2002/Tankstelle_Symcon",
+    "parentRequirements": [],
+    "childRequirements": [],
+    "implemented": [],
+    "prefix": "TANK"
+}
