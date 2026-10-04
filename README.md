@@ -5,7 +5,7 @@
 [![Darstellungen](https://img.shields.io/badge/Darstellungen-ab%208.0-0a6ebd.svg)](https://www.symcon.de/de/service/dokumentation/entwicklerbereich/sdk-tools/sdk-php/darstellungen/)
 [![Kachel](https://img.shields.io/badge/Kachel-HTML--SDK-22b14c.svg)](https://www.symcon.de/de/service/dokumentation/entwicklerbereich/sdk-tools/sdk-php/html-sdk/)
 [![PHP](https://img.shields.io/badge/PHP-8.0%2B-777bb4.svg)](https://www.php.net)
-[![Version](https://img.shields.io/badge/Version-3.1-green.svg)](#changelog)
+[![Version](https://img.shields.io/badge/Version-3.2-green.svg)](#changelog)
 [![Lizenz](https://img.shields.io/badge/Lizenz-MIT-lightgrey.svg)](LICENSE)
 [![Daten](https://img.shields.io/badge/Daten-Tankerk%C3%B6nig%20CC%20BY%204.0-orange.svg)](https://creativecommons.tankerkoenig.de)
 [![GitHub](https://img.shields.io/badge/GitHub-cfaf2002%2FTankstelle__Symcon-181717.svg?logo=github)](https://github.com/cfaf2002/Tankstelle_Symcon)
@@ -42,6 +42,8 @@ IP-Symcon-Modul für aktuelle Spritpreise aller Tankstellen im Umkreis über die
 - Günstigste Tankstelle mit Adresse und Entfernung, Ø- und Höchstpreis, Anzahl Stationen
 - **Moderne Kachel** im Stil der Symcon-Kacheln (HTML-SDK): Segment-Schalter, Preis in Tankstellen-Optik, Preisspanne, Markenkürzel, passt sich Größe und Hell/Dunkel an
 - **Darstellungen** (Symcon 8.0+/9.0) statt Variablenprofile – automatischer Rückfall auf Profile bei älteren Versionen
+- **Eigenes Hintergrundbild** für die Kachel, mit Abdunklung und Unschärfe
+- **Markenlogos** selbst hinterlegbar (Medienobjekte), sonst Markenkürzel
 - Optionale HTML-Variable (Webinhalt) für WebFront und ältere Visualisierungen
 - Optionaler **Preisalarm** mit einstellbarer Schwelle
 
@@ -79,6 +81,8 @@ Danach eine neue Instanz **Tankstellen** anlegen.
 | Max. Einträge | Begrenzung für Liste in Kachel und HTML-Variable (0 = alle) |
 | Bundesdurchschnitt | Deutschlandweiten Ø-Preis abrufen (alle 6 Stunden, zeitversetzt) |
 | HTML-Variable | Zuschaltbar, für die Kachel nicht nötig |
+| Hintergrundbild | Medienobjekt (Bild, max. 3 MB) für die Kachel, dazu Abdunkeln (0–90 %) und Unschärfe (0–20 px) |
+| Markenlogos | Liste „Marke → Medienobjekt“ (Bild, max. 512 KB); das Formular zeigt die Marken aus deinem Umkreis |
 | Detailvariablen | Adresse, Entfernung, Ø-Preis, Höchstpreis, Anzahl |
 | Preisalarm + Schwelle | Für den gewählten Kraftstoff, Schwelle in € |
 
@@ -114,6 +118,17 @@ Die Instanz bringt eine eigene Kachel mit (HTML-SDK). Einfach die Instanz in der
 - Liste aller Stationen mit Markenkürzel, Trendpfeil und Öffnungszeit; geschlossene ausgegraut
 - **Passt sich an:** breit zweispaltig, hoch mit Liste, mittel ohne Liste, klein nur Preis
 - Übernimmt Schrift sowie Hell/Dunkel der Symcon-Visualisierung; lässt Platz für Kacheltitel und Vollbild-Symbol
+
+### Hintergrundbild und Logos
+
+1. Bild in Symcon als **Medienobjekt** vom Typ *Bild* anlegen (PNG, JPG, WebP, GIF oder SVG).
+2. In der Instanz unter **Darstellung der Kachel** als Hintergrundbild auswählen bzw. in der Liste **Markenlogos**
+   die Marke eintragen (so wie sie in der Kachel steht) und das Logo-Medienobjekt wählen.
+3. Bilder werden nur beim Laden der Kachel übertragen, nicht bei jeder Preisänderung. Auf einem Hintergrundbild
+   ist die Schrift immer hell.
+
+> Markenlogos sind geschützte Zeichen der jeweiligen Unternehmen. Das Modul liefert deshalb **keine** Logos mit –
+> jeder hinterlegt für seine private Visualisierung die eigenen Bilder. Ohne Logo zeigt die Kachel ein Kürzel.
 
 ## PHP-Befehle
 
@@ -178,10 +193,16 @@ für Hausautomation höchstens alle 5 Minuten mit zufälligem Zeitversatz, Umkre
 | Preisdaten | Markttransparenzstelle für Kraftstoffe (MTS-K) über [Tankerkönig](https://creativecommons.tankerkoenig.de), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.de) – Quellenhinweis wird in Kachel und HTML-Variable angezeigt |
 | Geocoding (nur Quelle „Postleitzahl“) | © [OpenStreetMap-Mitwirkende](https://www.openstreetmap.org/copyright), [ODbL](https://opendatacommons.org/licenses/odbl/); Nutzung gemäß [Nominatim-Richtlinie](https://operations.osmfoundation.org/policies/nominatim/) (eigener User-Agent, Zwischenspeicher) |
 | Icons | Werden von der Symcon-Visualisierung bereitgestellt |
+| Markenlogos, Hintergrundbild | Nicht enthalten – vom Nutzer selbst hinterlegt; Rechte liegen bei den jeweiligen Inhabern |
 
 Bitte den eigenen API-Key **nicht** im Repository oder in Foren veröffentlichen.
 
 ## Changelog
+
+### 3.2
+- Hintergrundbild für die Kachel (Medienobjekt) mit Abdunkeln und Unschärfe
+- Markenlogos per Liste „Marke → Medienobjekt“, Formular zeigt die Marken im Umkreis
+- Bilder werden als Referenz registriert, nur bekannte Bildformate, Größenlimits
 
 ### 3.1
 - Kachel: Seitenabstand bündig zum Titel, Symcon-Schrift (Poppins) im Kachelrahmen, Trend direkt am Preis

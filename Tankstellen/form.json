@@ -224,6 +224,79 @@
                     ]
                 }
             ]
+        },
+        {
+            "type": "ExpansionPanel",
+            "caption": "Darstellung der Kachel",
+            "items": [
+                {
+                    "type": "Label",
+                    "caption": "Bilder als Medienobjekt (Typ Bild) in Symcon anlegen und hier auswählen. Formate: PNG, JPG, WebP, GIF, SVG."
+                },
+                {
+                    "type": "SelectMedia",
+                    "name": "BackgroundMedia",
+                    "caption": "Hintergrundbild (max. 3 MB)"
+                },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        {
+                            "type": "NumberSpinner",
+                            "name": "BackgroundDim",
+                            "caption": "Abdunkeln",
+                            "suffix": "%",
+                            "minimum": 0,
+                            "maximum": 90
+                        },
+                        {
+                            "type": "NumberSpinner",
+                            "name": "BackgroundBlur",
+                            "caption": "Unschärfe",
+                            "suffix": "px",
+                            "minimum": 0,
+                            "maximum": 20
+                        }
+                    ]
+                },
+                {
+                    "type": "Label",
+                    "caption": "Markenlogos: Marke so eintragen, wie sie in der Kachel steht (Groß-/Kleinschreibung egal). Ohne Logo erscheint das Kürzel."
+                },
+                {
+                    "type": "Label",
+                    "name": "BrandInfo",
+                    "caption": "-"
+                },
+                {
+                    "type": "List",
+                    "name": "BrandLogos",
+                    "caption": "Markenlogos",
+                    "rowCount": 6,
+                    "add": true,
+                    "delete": true,
+                    "columns": [
+                        {
+                            "caption": "Marke",
+                            "name": "Brand",
+                            "width": "220px",
+                            "add": "",
+                            "edit": {
+                                "type": "ValidationTextBox"
+                            }
+                        },
+                        {
+                            "caption": "Logo (Medienobjekt, max. 512 KB)",
+                            "name": "Media",
+                            "width": "auto",
+                            "add": 0,
+                            "edit": {
+                                "type": "SelectMedia"
+                            }
+                        }
+                    ]
+                }
+            ]
         }
     ],
     "actions": [

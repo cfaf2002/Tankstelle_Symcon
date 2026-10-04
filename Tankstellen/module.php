@@ -46,6 +46,8 @@ class Tankstellen extends IPSModule
     private const LEGACY_RETRY   = 86400;    // nach Ausfall von v4 einen Tag lang v1 nutzen
     private const MAX_RADIUS     = 25;       // km – Grenze der API
     private const MAX_RESPONSE   = 2097152;  // 2 MB
+    private const MAX_IMAGE      = 3145728;  // 3 MB – größere Bilder bremsen die Kachel
+    private const IMAGE_TYPES    = ['png' => 'image/png', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'gif' => 'image/gif', 'webp' => 'image/webp', 'svg' => 'image/svg+xml'];
 
     private const SOURCE_SYMCON = 0;
     private const SOURCE_CUSTOM = 1;
@@ -88,6 +90,12 @@ class Tankstellen extends IPSModule
         $this->RegisterPropertyBoolean('EnableAlert', false);
         $this->RegisterPropertyFloat('AlertThreshold', 1.70);
 
+        // Darstellung der Kachel
+        $this->RegisterPropertyInteger('BackgroundMedia', 0);
+        $this->RegisterPropertyInteger('BackgroundDim', 55);
+        $this->RegisterPropertyInteger('BackgroundBlur', 0);
+        $this->RegisterPropertyString('BrandLogos', '[]');
+
         // Interner Speicher
         $this->RegisterAttributeString('GeoCache', '{}');
         $this->RegisterAttributeString('Cache', '{}');
@@ -107,6 +115,11 @@ class Tankstellen extends IPSModule
         parent::ApplyChanges();
 
         $this->MaintainVariables();
+        $this->UpdateMediaReferences();
+        if (IPS_GetKernelRunlevel() === KR_READY) {
+            // geänderte Bilder sofort an offene Kacheln schicken
+            $this->UpdateVisualizationValue(json_encode(['assets' => $this->BuildAssets()]));
+        }
 
         if (!$this->ValidateConfig()) {
             $this->SetTimerInterval('Update', 0);
@@ -338,7 +351,20 @@ class Tankstellen extends IPSModule
             ? $this->Translate('Noch keine Abfrage – geliefert werden derzeit üblicherweise E5, E10 und Diesel.')
             : sprintf($this->Translate('Bei der letzten Abfrage geliefert: %s'), implode(', ', $labels));
 
-        $this->WalkForm($form['elements'], function (array &$el) use ($source, $info, $fuelInfo) {
+        // Welche Marken gibt es im Umkreis? Hilft beim Zuordnen der Logos.
+        $brands = [];
+        foreach ($this->ReadCache()['stations'] as $s) {
+            $b = trim((string) (($s['b'] ?? '') !== '' ? $s['b'] : $s['n']));
+            if ($b !== '') {
+                $brands[mb_strtoupper($b)] = $b;
+            }
+        }
+        ksort($brands);
+        $brandInfo = empty($brands)
+            ? $this->Translate('Nach der ersten Abfrage stehen hier die Marken aus deinem Umkreis.')
+            : sprintf($this->Translate('Marken im Umkreis: %s'), implode(', ', $brands));
+
+        $this->WalkForm($form['elements'], function (array &$el) use ($source, $info, $fuelInfo, $brandInfo) {
             switch ($el['name'] ?? '') {
                 case 'SymconLocationInfo':
                     $el['caption'] = $info;
@@ -353,6 +379,9 @@ class Tankstellen extends IPSModule
                 case 'FuelInfo':
                     $el['caption'] = $fuelInfo;
                     break;
+                case 'BrandInfo':
+                    $el['caption'] = $brandInfo;
+                    break;
             }
         });
         return json_encode($form);
@@ -361,8 +390,87 @@ class Tankstellen extends IPSModule
     public function GetVisualizationTile()
     {
         $html = file_get_contents(__DIR__ . '/module.html');
-        $payload = json_encode($this->BuildTileData(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
-        return $html . '<script>handleMessage(' . $payload . ');</script>';
+        $flags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
+        // Bilder nur einmal beim Laden der Kachel übertragen, nicht bei jeder Preisänderung
+        $assets = json_encode(['assets' => $this->BuildAssets()], $flags);
+        $payload = json_encode($this->BuildTileData(), $flags);
+        return $html . '<script>handleMessage(' . $assets . ');handleMessage(' . $payload . ');</script>';
+    }
+
+    // ------------------------------------------------------------------
+    // Bilder: Hintergrund und Markenlogos (Medienobjekte des Nutzers)
+    // ------------------------------------------------------------------
+
+    private function BuildAssets(): array
+    {
+        $logos = [];
+        foreach ($this->ReadBrandLogos() as $brand => $mediaID) {
+            $uri = $this->MediaDataUri($mediaID, 524288); // Logos max. 512 KB
+            if ($uri !== null) {
+                $logos[$brand] = $uri;
+            }
+        }
+        return [
+            'background' => $this->MediaDataUri($this->ReadPropertyInteger('BackgroundMedia'), self::MAX_IMAGE),
+            'dim'        => max(0, min(90, $this->ReadPropertyInteger('BackgroundDim'))),
+            'blur'       => max(0, min(20, $this->ReadPropertyInteger('BackgroundBlur'))),
+            'logos'      => $logos
+        ];
+    }
+
+    /** Liste „Marke → Medienobjekt“, Marke normalisiert (klein, nur Buchstaben/Ziffern) */
+    private function ReadBrandLogos(): array
+    {
+        $list = json_decode($this->ReadPropertyString('BrandLogos'), true);
+        $map = [];
+        foreach (is_array($list) ? $list : [] as $row) {
+            $key = $this->BrandKey((string) ($row['Brand'] ?? ''));
+            $media = (int) ($row['Media'] ?? 0);
+            if ($key !== '' && $media > 0) {
+                $map[$key] = $media;
+            }
+        }
+        return $map;
+    }
+
+    private function BrandKey(string $brand): string
+    {
+        return preg_replace('/[^a-z0-9äöüß]/u', '', mb_strtolower($brand));
+    }
+
+    /** Bild-Medienobjekt als data-URI; nur bekannte Bildformate, mit Größenlimit */
+    private function MediaDataUri(int $id, int $limit): ?string
+    {
+        if ($id <= 0 || !IPS_MediaExists($id)) {
+            return null;
+        }
+        $media = IPS_GetMedia($id);
+        if ((int) ($media['MediaType'] ?? -1) !== MEDIATYPE_IMAGE) {
+            return null;
+        }
+        $ext = strtolower(pathinfo((string) ($media['MediaFile'] ?? ''), PATHINFO_EXTENSION));
+        $mime = self::IMAGE_TYPES[$ext] ?? null;
+        $content = (string) IPS_GetMediaContent($id); // bereits base64
+        if ($mime === null || $content === '' || strlen($content) > $limit * 4 / 3) {
+            $this->SendDebug('Bild', sprintf('Medienobjekt %d übersprungen (Format/Größe)', $id), 0);
+            return null;
+        }
+        return 'data:' . $mime . ';base64,' . preg_replace('/[^A-Za-z0-9+\/=]/', '', $content);
+    }
+
+    /** Verwendete Medienobjekte als Referenz melden (Symcon warnt dann vor dem Löschen) */
+    private function UpdateMediaReferences(): void
+    {
+        foreach ($this->GetReferenceList() as $ref) {
+            $this->UnregisterReference($ref);
+        }
+        $ids = array_values($this->ReadBrandLogos());
+        $ids[] = $this->ReadPropertyInteger('BackgroundMedia');
+        foreach (array_unique(array_filter($ids)) as $id) {
+            if (IPS_ObjectExists($id)) {
+                $this->RegisterReference($id);
+            }
+        }
     }
 
     // ------------------------------------------------------------------

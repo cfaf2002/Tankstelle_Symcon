@@ -75,7 +75,18 @@
             "Bitte eine Minute warten (Tankerkönig erlaubt eine Anfrage pro Minute).": "Please wait a minute (Tankerkönig allows one request per minute).",
             "API-Key ungültig.": "Invalid API key.",
             "Tankerkönig: zu viele Anfragen – bitte Intervall erhöhen.": "Tankerkönig: too many requests – please increase the interval.",
-            "Fehler (HTTP %d)": "Error (HTTP %d)"
+            "Fehler (HTTP %d)": "Error (HTTP %d)",
+            "Darstellung der Kachel": "Tile appearance",
+            "Bilder als Medienobjekt (Typ Bild) in Symcon anlegen und hier auswählen. Formate: PNG, JPG, WebP, GIF, SVG.": "Create images as media objects (type image) in Symcon and select them here. Formats: PNG, JPG, WebP, GIF, SVG.",
+            "Hintergrundbild (max. 3 MB)": "Background image (max. 3 MB)",
+            "Abdunkeln": "Darken",
+            "Unschärfe": "Blur",
+            "Markenlogos: Marke so eintragen, wie sie in der Kachel steht (Groß-/Kleinschreibung egal). Ohne Logo erscheint das Kürzel.": "Brand logos: enter the brand as shown in the tile (case-insensitive). Without a logo the initials are shown.",
+            "Markenlogos": "Brand logos",
+            "Marke": "Brand",
+            "Logo (Medienobjekt, max. 512 KB)": "Logo (media object, max. 512 KB)",
+            "Nach der ersten Abfrage stehen hier die Marken aus deinem Umkreis.": "After the first request, the brands in your area are listed here.",
+            "Marken im Umkreis: %s": "Brands in your area: %s"
         }
     }
 }

@@ -71,7 +71,14 @@
     .list::-webkit-scrollbar { width: 6px; } .list::-webkit-scrollbar-thumb { background: var(--faint); border-radius: 3px; }
     .row { display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
     .row:first-child { border-top: 0; }
-    .logo { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 700; color: #fff; letter-spacing: .2px; }
+    .logo { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 700; color: #fff; letter-spacing: .2px; overflow: hidden; }
+    .logo.img { background: #fff; }
+    .logo img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
+
+    /* Hintergrundbild aus der Instanz, abgedunkelt für gute Lesbarkeit */
+    .bg, .shade { position: fixed; inset: 0; pointer-events: none; z-index: -1; }
+    .bg { background: center / cover no-repeat; transform: scale(1.06); }
+    .shade { background: rgba(0, 0, 0, var(--dim, .55)); }
     .row .n { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .row .s { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .row .p { font-size: 15px; font-weight: 600; text-align: right; white-space: nowrap; }
@@ -115,6 +122,7 @@
 </style>
 </head>
 <body>
+<div class="bg" id="bg" hidden></div><div class="shade" id="shade" hidden></div>
 <div class="tile">
     <div class="seg" id="seg" role="group" aria-label="Kraftstoff"><div class="knob" id="knob"></div></div>
     <div class="main" id="main"></div>
@@ -128,6 +136,8 @@
 <script>
     let state = null;
     let selected = null;
+    let assets = { background: null, dim: 55, blur: 0, logos: {} };
+    let themeText = null;   // Textfarbe passend zum Symcon-Theme
     const $ = (id) => document.getElementById(id);
     const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 
@@ -161,7 +171,23 @@
 
     // Kreis mit Markenkürzel, Farbe stabil aus dem Namen abgeleitet
     const PALETTE = ['#2f6fdf', '#d9534f', '#e0a800', '#2a9d8f', '#7b5cd6', '#e76f51', '#3a86a8', '#8d6e63', '#c2185b', '#5c7cfa'];
-    function logo(name) {
+    const brandKey = (v) => (v || '').toLowerCase().replace(/[^a-z0-9äöüß]/g, '');
+    function logoFor(brand, name) {
+        const logos = assets.logos || {};
+        const b = brandKey(brand), n = brandKey(name);
+        if (b && logos[b]) return logos[b];
+        if (n && logos[n]) return logos[n];
+        for (const k of Object.keys(logos)) if (k && (n.startsWith(k) || b.startsWith(k))) return logos[k];
+        return null;
+    }
+    function logo(name, brand) {
+        const src = logoFor(brand, name);
+        if (src) {
+            const d = el('div', 'logo img');
+            const img = el('img'); img.alt = name || ''; img.src = src; img.decoding = 'async';
+            d.append(img);
+            return d;
+        }
         const clean = (name || '?').replace(/[^A-Za-zÄÖÜäöü0-9 ]/g, '').trim();
         const parts = clean.split(/\s+/);
         const text = (parts.length > 1 ? parts[0][0] + parts[1][0] : clean.slice(0, 2)).toUpperCase() || '?';
@@ -278,7 +304,7 @@
             if (s.change) d.append(el('span', s.change < 0 ? 'down' : 'up', (s.change < 0 ? '↓' : '↑') + ' '));
             d.append(km(s.distance));
             right.append(d);
-            row.append(logo(s.brand || s.name), mid, right);
+            row.append(logo(s.brand || s.name, s.brand), mid, right);
             list.append(row);
         });
     }
@@ -333,7 +359,8 @@
             while (node && node.nodeType === 1) {
                 const v = rgb(getComputedStyle(node).backgroundColor);
                 if (v.length >= 3 && (v.length < 4 || v[3] > 0.5)) {
-                    root.setProperty('--text', (0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]) / 255 < 0.5 ? '#ffffff' : '#1c1c1e');
+                    themeText = (0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]) / 255 < 0.5 ? '#ffffff' : '#1c1c1e';
+                    root.setProperty('--text', themeText);
                     return;
                 }
                 node = node.parentElement;
@@ -341,10 +368,34 @@
         } catch (e) { /* andere Herkunft – Vorgaben bleiben */ }
     })();
 
+    // Hintergrundbild anwenden: auf Bildern immer helle Schrift
+    function applyBackground() {
+        const bg = $('bg'), shade = $('shade'), root = document.documentElement.style;
+        if (assets.background) {
+            bg.style.backgroundImage = 'url("' + assets.background + '")';
+            bg.style.filter = assets.blur ? 'blur(' + Number(assets.blur) + 'px)' : '';
+            root.setProperty('--dim', String(Number(assets.dim) / 100));
+            bg.hidden = false; shade.hidden = false;
+            root.setProperty('--text', '#ffffff');
+        } else {
+            bg.hidden = true; shade.hidden = true;
+            bg.style.backgroundImage = '';
+            if (themeText) root.setProperty('--text', themeText); else root.removeProperty('--text');
+        }
+    }
+
     // Von Symcon aufgerufen: initial mit Objekt, danach mit JSON-String
     function handleMessage(data) {
-        try { state = typeof data === 'string' ? JSON.parse(data) : data; } catch (e) { return; }
-        if (!state) return;
+        let msg;
+        try { msg = typeof data === 'string' ? JSON.parse(data) : data; } catch (e) { return; }
+        if (!msg) return;
+        if (msg.assets) {             // Bilder (selten): Hintergrund und Logos
+            assets = msg.assets;
+            applyBackground();
+            render();
+            return;
+        }
+        state = msg;
         selected = state.selected;
         $('refresh').classList.remove('spin');
         render();
