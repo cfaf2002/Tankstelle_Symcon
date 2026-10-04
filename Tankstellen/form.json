@@ -234,6 +234,26 @@
                     "caption": "Bilder als Medienobjekt (Typ Bild) in Symcon anlegen und hier auswählen. Formate: PNG, JPG, WebP, GIF, SVG."
                 },
                 {
+                    "type": "Select",
+                    "name": "BackgroundMode",
+                    "caption": "Hintergrund",
+                    "onChange": "TANK_UpdateBackgroundForm($id, $BackgroundMode);",
+                    "options": [
+                        {
+                            "caption": "Zapfhahn (mitgeliefert)",
+                            "value": 1
+                        },
+                        {
+                            "caption": "Eigenes Bild",
+                            "value": 2
+                        },
+                        {
+                            "caption": "Kein Bild",
+                            "value": 0
+                        }
+                    ]
+                },
+                {
                     "type": "SelectMedia",
                     "name": "BackgroundMedia",
                     "caption": "Hintergrundbild (max. 3 MB)"
@@ -257,27 +277,23 @@
                             "minimum": 0,
                             "maximum": 20
                         }
-                    ]
+                    ],
+                    "name": "BackgroundRow"
                 },
                 {
                     "type": "Label",
-                    "caption": "Markenlogos: Marke so eintragen, wie sie in der Kachel steht (Groß-/Kleinschreibung egal). Ohne Logo erscheint das Kürzel."
-                },
-                {
-                    "type": "Label",
-                    "name": "BrandInfo",
-                    "caption": "-"
+                    "caption": "Eigene Bilder für die Liste: Namen so eintragen, wie er in der Kachel steht (Groß-/Kleinschreibung egal). Ohne Bild erscheint ein Kürzel."
                 },
                 {
                     "type": "List",
                     "name": "BrandLogos",
-                    "caption": "Markenlogos",
+                    "caption": "Bilder für Tankstellen",
                     "rowCount": 6,
                     "add": true,
                     "delete": true,
                     "columns": [
                         {
-                            "caption": "Marke",
+                            "caption": "Name (wie in der Kachel)",
                             "name": "Brand",
                             "width": "220px",
                             "add": "",
@@ -286,7 +302,7 @@
                             }
                         },
                         {
-                            "caption": "Logo (Medienobjekt, max. 512 KB)",
+                            "caption": "Bild (Medienobjekt, max. 512 KB)",
                             "name": "Media",
                             "width": "auto",
                             "add": 0,

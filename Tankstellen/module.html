@@ -24,7 +24,7 @@
     button { font: inherit; color: inherit; }
     .num { font-variant-numeric: tabular-nums; }
 
-    .tile { height: 100%; padding: var(--top) var(--side) 10px; display: grid; grid-template-rows: auto auto 1fr auto; gap: 14px; }
+    .tile { height: 100%; padding: var(--top) var(--side) 10px; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 1fr auto; gap: 14px; }
 
     /* Kraftstoffwahl: ein Segment-Schalter wie bei Symcon-Aufzählungen */
     .seg { position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--faint); border-radius: 999px; padding: 3px; }
@@ -45,7 +45,7 @@
     .trend { font-size: 12px; font-weight: 600; white-space: nowrap; padding-bottom: 6px; }
     .trend.down { color: var(--cheap); } .trend.up { color: var(--dear); }
     .who .name { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .who .meta { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .who .meta { color: var(--muted); overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
     .badge { justify-self: start; font-size: 11px; font-weight: 600; padding: 2px 10px; border-radius: 999px; background: color-mix(in srgb, var(--cheap) 22%, transparent); color: var(--cheap); }
 
     /* Preisspanne der Umgebung mit Ø und Bundesschnitt */
@@ -54,7 +54,7 @@
     .bar .mark { position: absolute; top: 50%; width: 2px; height: 14px; transform: translate(-1px, -50%); background: var(--text); border-radius: 1px; }
     .bar .mark.de { background: none; border-left: 2px dotted var(--text); width: 0; }
     .bar .dot { position: absolute; top: 50%; width: 12px; height: 12px; transform: translate(-6px, -50%); border-radius: 50%; background: var(--cheap); box-shadow: 0 0 0 3px color-mix(in srgb, var(--text) 85%, transparent); }
-    .legend { margin: 0 -7px; display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 11px; }
+    .legend { margin: 0 -7px; display: flex; flex-wrap: wrap; row-gap: 2px; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 11px; }
     .legend b, .legend .b { color: var(--text); font-weight: 600; }
     .legend sup, .seg .v sup { font-size: .75em; vertical-align: .35em; }
 
@@ -92,9 +92,13 @@
     .msg.err { background: color-mix(in srgb, var(--dear) 16%, transparent); color: var(--dear); }
 
     .foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); }
-    .refresh { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 2px 0; cursor: pointer; color: var(--muted); }
+    .refresh { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 2px 0; cursor: pointer; color: var(--muted); min-width: 0; text-align: left; }
+    .refresh #updated { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .foot > span { white-space: nowrap; flex: 0 0 auto; }
     .refresh:hover { color: var(--text); }
     .refresh.spin i { animation: spin .8s linear infinite; }
+    .refresh.stale { color: var(--dear); }
+    .src-short { display: none; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* Breite Kachel: Preis links, Liste rechts */
@@ -111,12 +115,17 @@
     /* Klein: nur Auswahl, Preis und Tankstelle */
     @container (max-height: 240px) {
         .tile { padding-top: 40px; padding-bottom: 6px; }
-        .range, .foot, .who .meta, .badge { display: none; }
+        .range, .who .meta, .badge, .src-long, .ago { display: none; }
+        .src-short { display: inline; }
+        .foot { font-size: 10px; }
         .tile { gap: 10px; }
         .price { font-size: 40px; }
     }
-    @container (max-height: 170px) { .seg .v, .trend { display: none; } .price { font-size: 32px; } }
+    @container (max-height: 170px) { .seg .v, .trend, .who { display: none; } .price { font-size: 32px; } }
     @container (max-width: 280px) { .price { font-size: 40px; } }
+
+    /* Schmale Kacheln (Handy): kurze Quellenangabe */
+    @container (max-width: 460px) { .src-long { display: none; } .src-short { display: inline; } }
 
     @media (prefers-reduced-motion: reduce) { .seg .knob { transition: none; } .refresh.spin i { animation: none; } }
 </style>
@@ -129,7 +138,7 @@
     <div class="list" id="list"></div>
     <div class="foot">
         <button class="refresh" id="refresh" type="button" title="Jetzt aktualisieren"><i class="fa-light fa-arrows-rotate"></i><span id="updated"></span></button>
-        <span>Daten: Tankerkönig (CC BY 4.0)</span>
+        <span><span class="src-long">Daten: Tankerkönig (CC BY 4.0)</span><span class="src-short">Tankerkönig</span></span>
     </div>
 </div>
 
@@ -169,7 +178,7 @@
         return '';
     }
 
-    // Kreis mit Markenkürzel, Farbe stabil aus dem Namen abgeleitet
+    // Kreis mit Kürzel, Farbe stabil aus dem Namen abgeleitet
     const PALETTE = ['#2f6fdf', '#d9534f', '#e0a800', '#2a9d8f', '#7b5cd6', '#e76f51', '#3a86a8', '#8d6e63', '#c2185b', '#5c7cfa'];
     const brandKey = (v) => (v || '').toLowerCase().replace(/[^a-z0-9äöüß]/g, '');
     function logoFor(brand, name) {
@@ -315,8 +324,21 @@
         const f = (state.fuels || []).find((x) => x.index === selected);
         renderMain(f);
         renderList(f);
-        $('updated').textContent = state.updated ? 'Stand ' + clock(state.updated) : 'Aktualisieren';
+        renderUpdated();
     }
+
+    // Zeitpunkt der letzten Aktualisierung – tickt alle 30 Sekunden weiter
+    function renderUpdated() {
+        const r = $('refresh'), out = $('updated');
+        out.replaceChildren();
+        if (!state || !state.updated) { out.textContent = 'Jetzt aktualisieren'; r.classList.remove('stale'); return; }
+        const ageMin = (Date.now() / 1000 - state.updated) / 60;
+        const stale = ageMin > 2 * (state.interval || 15) + 5;
+        r.classList.toggle('stale', stale);
+        r.title = stale ? 'Daten sind älter als erwartet – jetzt aktualisieren' : 'Jetzt aktualisieren';
+        out.append('Aktualisiert ' + clock(state.updated) + ' Uhr', el('span', 'ago', ', ' + ago(state.updated)));
+    }
+    setInterval(renderUpdated, 30000);
 
     // Aktualisieren (höchstens 1x pro Minute, das prüft das Modul)
     (function initRefresh() {
@@ -373,6 +395,7 @@
         const bg = $('bg'), shade = $('shade'), root = document.documentElement.style;
         if (assets.background) {
             bg.style.backgroundImage = 'url("' + assets.background + '")';
+            bg.style.backgroundPosition = assets.position || 'center';
             bg.style.filter = assets.blur ? 'blur(' + Number(assets.blur) + 'px)' : '';
             root.setProperty('--dim', String(Number(assets.dim) / 100));
             bg.hidden = false; shade.hidden = false;

@@ -49,6 +49,10 @@ class Tankstellen extends IPSModule
     private const MAX_IMAGE      = 3145728;  // 3 MB – größere Bilder bremsen die Kachel
     private const IMAGE_TYPES    = ['png' => 'image/png', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'gif' => 'image/gif', 'webp' => 'image/webp', 'svg' => 'image/svg+xml'];
 
+    private const BG_NONE    = 0;   // kein Hintergrundbild
+    private const BG_BUILTIN = 1;   // mitgeliefertes Motiv „Zapfhahn“
+    private const BG_MEDIA   = 2;   // eigenes Medienobjekt
+
     private const SOURCE_SYMCON = 0;
     private const SOURCE_CUSTOM = 1;
     private const SOURCE_PLZ    = 2;
@@ -91,8 +95,9 @@ class Tankstellen extends IPSModule
         $this->RegisterPropertyFloat('AlertThreshold', 1.70);
 
         // Darstellung der Kachel
+        $this->RegisterPropertyInteger('BackgroundMode', self::BG_BUILTIN);
         $this->RegisterPropertyInteger('BackgroundMedia', 0);
-        $this->RegisterPropertyInteger('BackgroundDim', 55);
+        $this->RegisterPropertyInteger('BackgroundDim', 25);
         $this->RegisterPropertyInteger('BackgroundBlur', 0);
         $this->RegisterPropertyString('BrandLogos', '[]');
 
@@ -318,6 +323,12 @@ class Tankstellen extends IPSModule
             : sprintf($this->Translate('PLZ %s gefunden: %s, %s'), trim($PLZ), $coords['lat'], $coords['lon']);
     }
 
+    public function UpdateBackgroundForm(int $Mode): void
+    {
+        $this->UpdateFormField('BackgroundMedia', 'visible', $Mode === self::BG_MEDIA);
+        $this->UpdateFormField('BackgroundRow', 'visible', $Mode !== self::BG_NONE);
+    }
+
     public function UpdateLocationForm(int $Source): void
     {
         $this->UpdateFormField('SymconLocationInfo', 'visible', $Source === self::SOURCE_SYMCON);
@@ -351,21 +362,15 @@ class Tankstellen extends IPSModule
             ? $this->Translate('Noch keine Abfrage – geliefert werden derzeit üblicherweise E5, E10 und Diesel.')
             : sprintf($this->Translate('Bei der letzten Abfrage geliefert: %s'), implode(', ', $labels));
 
-        // Welche Marken gibt es im Umkreis? Hilft beim Zuordnen der Logos.
-        $brands = [];
-        foreach ($this->ReadCache()['stations'] as $s) {
-            $b = trim((string) (($s['b'] ?? '') !== '' ? $s['b'] : $s['n']));
-            if ($b !== '') {
-                $brands[mb_strtoupper($b)] = $b;
-            }
-        }
-        ksort($brands);
-        $brandInfo = empty($brands)
-            ? $this->Translate('Nach der ersten Abfrage stehen hier die Marken aus deinem Umkreis.')
-            : sprintf($this->Translate('Marken im Umkreis: %s'), implode(', ', $brands));
-
-        $this->WalkForm($form['elements'], function (array &$el) use ($source, $info, $fuelInfo, $brandInfo) {
+        $bgMode = $this->ReadPropertyInteger('BackgroundMode');
+        $this->WalkForm($form['elements'], function (array &$el) use ($source, $info, $fuelInfo, $bgMode) {
             switch ($el['name'] ?? '') {
+                case 'BackgroundMedia':
+                    $el['visible'] = $bgMode === self::BG_MEDIA;
+                    break;
+                case 'BackgroundRow':
+                    $el['visible'] = $bgMode !== self::BG_NONE;
+                    break;
                 case 'SymconLocationInfo':
                     $el['caption'] = $info;
                     $el['visible'] = $source === self::SOURCE_SYMCON;
@@ -378,9 +383,6 @@ class Tankstellen extends IPSModule
                     break;
                 case 'FuelInfo':
                     $el['caption'] = $fuelInfo;
-                    break;
-                case 'BrandInfo':
-                    $el['caption'] = $brandInfo;
                     break;
             }
         });
@@ -398,27 +400,43 @@ class Tankstellen extends IPSModule
     }
 
     // ------------------------------------------------------------------
-    // Bilder: Hintergrund und Markenlogos (Medienobjekte des Nutzers)
+    // Bilder: Hintergrund und eigene Bilder für die Liste (Medienobjekte des Nutzers)
     // ------------------------------------------------------------------
 
     private function BuildAssets(): array
     {
         $logos = [];
         foreach ($this->ReadBrandLogos() as $brand => $mediaID) {
-            $uri = $this->MediaDataUri($mediaID, 524288); // Logos max. 512 KB
+            $uri = $this->MediaDataUri($mediaID, 524288); // Bilder für die Liste max. 512 KB
             if ($uri !== null) {
                 $logos[$brand] = $uri;
             }
         }
+        switch ($this->ReadPropertyInteger('BackgroundMode')) {
+            case self::BG_BUILTIN:
+                // mitgeliefertes SVG – klein, scharf in jeder Größe, Motiv rechts
+                $svg = @file_get_contents(__DIR__ . '/assets/zapfhahn.svg');
+                $background = $svg !== false ? 'data:image/svg+xml;base64,' . base64_encode($svg) : null;
+                $position = 'right center';
+                break;
+            case self::BG_MEDIA:
+                $background = $this->MediaDataUri($this->ReadPropertyInteger('BackgroundMedia'), self::MAX_IMAGE);
+                $position = 'center';
+                break;
+            default:
+                $background = null;
+                $position = 'center';
+        }
         return [
-            'background' => $this->MediaDataUri($this->ReadPropertyInteger('BackgroundMedia'), self::MAX_IMAGE),
+            'background' => $background,
+            'position'   => $position,
             'dim'        => max(0, min(90, $this->ReadPropertyInteger('BackgroundDim'))),
             'blur'       => max(0, min(20, $this->ReadPropertyInteger('BackgroundBlur'))),
             'logos'      => $logos
         ];
     }
 
-    /** Liste „Marke → Medienobjekt“, Marke normalisiert (klein, nur Buchstaben/Ziffern) */
+    /** Liste „Name → Medienobjekt“, Name normalisiert (klein, nur Buchstaben/Ziffern) */
     private function ReadBrandLogos(): array
     {
         $list = json_decode($this->ReadPropertyString('BrandLogos'), true);
@@ -465,7 +483,9 @@ class Tankstellen extends IPSModule
             $this->UnregisterReference($ref);
         }
         $ids = array_values($this->ReadBrandLogos());
-        $ids[] = $this->ReadPropertyInteger('BackgroundMedia');
+        if ($this->ReadPropertyInteger('BackgroundMode') === self::BG_MEDIA) {
+            $ids[] = $this->ReadPropertyInteger('BackgroundMedia');
+        }
         foreach (array_unique(array_filter($ids)) as $id) {
             if (IPS_ObjectExists($id)) {
                 $this->RegisterReference($id);
@@ -912,6 +932,7 @@ class Tankstellen extends IPSModule
             'fuels'     => $fuels,
             'radius'    => $this->GetRadius(),
             'updated'   => (int) $cache['fetched'],
+            'interval'  => max(self::MIN_INTERVAL, $this->ReadPropertyInteger('UpdateInterval')),
             'error'     => $this->CurrentError($enabled),
             'threshold' => $this->ReadPropertyBoolean('EnableAlert') ? $this->ReadPropertyFloat('AlertThreshold') : null
         ];

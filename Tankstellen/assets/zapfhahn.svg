@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+  <!-- Hintergrund „Zapfhahn“ · Teil des Moduls Tankstellen · MIT © 2026 Armin Frohwerk -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a0a0a"/>
+      <stop offset=".6" stop-color="#141414"/>
+      <stop offset="1" stop-color="#050505"/>
+    </linearGradient>
+    <radialGradient id="spot" cx="1180" cy="380" r="560" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".16"/>
+      <stop offset=".5" stop-color="#ffffff" stop-opacity=".04"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a3a3a"/>
+      <stop offset=".18" stop-color="#1c1c1c"/>
+      <stop offset=".7" stop-color="#0c0c0c"/>
+      <stop offset="1" stop-color="#1a1a1a"/>
+    </linearGradient>
+    <linearGradient id="chrome" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4f4f4"/>
+      <stop offset=".35" stop-color="#9a9a9a"/>
+      <stop offset=".55" stop-color="#4a4a4a"/>
+      <stop offset="1" stop-color="#c8c8c8"/>
+    </linearGradient>
+    <linearGradient id="hose" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#050505"/>
+      <stop offset=".45" stop-color="#262626"/>
+      <stop offset="1" stop-color="#050505"/>
+    </linearGradient>
+    <radialGradient id="drop" cx=".38" cy=".32" r=".75">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset=".4" stop-color="#bdbdbd"/>
+      <stop offset="1" stop-color="#3c3c3c"/>
+    </radialGradient>
+    <filter id="blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="22"/></filter>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <circle cx="1180" cy="380" r="560" fill="url(#spot)"/>
+
+  <!-- feine Kreisbögen als ruhige Struktur -->
+  <g fill="none" stroke="#ffffff" stroke-opacity=".05" stroke-width="1.5">
+    <circle cx="1180" cy="400" r="300"/>
+    <circle cx="1180" cy="400" r="420"/>
+    <circle cx="1180" cy="400" r="560"/>
+  </g>
+
+  <!-- Spiegelung am Boden -->
+  <ellipse cx="1150" cy="780" rx="380" ry="26" fill="#ffffff" opacity=".06" filter="url(#blur)"/>
+
+  <!-- Schlauch -->
+  <path d="M1499 318 C1590 306 1600 460 1534 602 S1452 862 1574 990" fill="none" stroke="url(#hose)" stroke-width="46" stroke-linecap="round"/>
+  <path d="M1499 304 C1578 294 1586 452 1520 592 S1438 850 1560 978" fill="none" stroke="#ffffff" stroke-opacity=".45" stroke-width="2" stroke-linecap="round"/>
+
+  <g transform="translate(1140 420) rotate(-12)">
+    <!-- Auslaufrohr (Chrom) -->
+    <path d="M-50 -6 L-240 -6 Q-292 -6 -326 36" fill="none" stroke="url(#chrome)" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M-60 -14 L-238 -14 Q-284 -14 -314 20" fill="none" stroke="#ffffff" stroke-opacity=".8" stroke-width="2" stroke-linecap="round"/>
+    <!-- Überwurfmutter -->
+    <rect x="-74" y="-30" width="30" height="48" rx="5" fill="url(#chrome)"/>
+    <!-- Gehäuse: kantig, modern -->
+    <path d="M-44 -56 H118 C158 -56 178 -44 198 -24 L262 30 C274 42 266 54 250 54 H-44 Q-64 54 -64 34 V-36 Q-64 -56 -44 -56 Z" fill="url(#body)"/>
+    <path d="M-44 -56 H118 C158 -56 178 -44 198 -24 L262 30" fill="none" stroke="#ffffff" stroke-opacity=".7" stroke-width="2"/>
+    <path d="M-44 54 H250" fill="none" stroke="#ffffff" stroke-opacity=".38" stroke-width="2"/>
+    <!-- weiße Akzentlinie -->
+    <path d="M-30 -8 H150" stroke="#ffffff" stroke-opacity=".85" stroke-width="4" stroke-linecap="round"/>
+    <!-- Griff -->
+    <path d="M186 -40 L330 -58 Q352 -60 352 -38 L352 -6 Q352 16 330 14 L206 4 Z" fill="url(#body)"/>
+    <path d="M186 -40 L330 -58 Q352 -60 352 -38" fill="none" stroke="#ffffff" stroke-opacity=".65" stroke-width="2"/>
+    <path d="M220 -30 L320 -42" stroke="#ffffff" stroke-opacity=".25" stroke-width="10" stroke-linecap="round"/>
+    <!-- Drehgelenk -->
+    <rect x="348" y="-50" width="26" height="58" rx="6" fill="url(#chrome)"/>
+    <!-- Abzugshebel und Bügel -->
+    <path d="M-24 54 Q96 84 232 58" fill="none" stroke="#2a2a2a" stroke-width="12" stroke-linecap="round"/>
+    <path d="M-24 54 Q96 84 232 58" fill="none" stroke="#ffffff" stroke-opacity=".35" stroke-width="1.5"/>
+    <path d="M-50 42 Q-56 136 76 138 Q238 140 268 44" fill="none" stroke="#ffffff" stroke-opacity=".6" stroke-width="4" stroke-linecap="round"/>
+    <!-- Tropfen -->
+    <g transform="translate(-334 84) rotate(12)">
+      <path d="M0 -30 C13 -12 20 0 20 11 A20 20 0 0 1 -20 11 C-20 0 -13 -12 0 -30 Z" fill="url(#drop)"/>
+      <circle cx="-6" cy="5" r="4.5" fill="#ffffff" opacity=".9"/>
+    </g>
+  </g>
+</svg>
