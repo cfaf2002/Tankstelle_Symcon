@@ -14,22 +14,38 @@ declare(strict_types=1);
  */
 class Tankstellen extends IPSModule
 {
-    private const API_LIST         = 'https://creativecommons.tankerkoenig.de/json/list.php';
+    private const API_V4           = 'https://creativecommons.tankerkoenig.de/api/v4';
+    private const API_V1           = 'https://creativecommons.tankerkoenig.de/json';
     private const API_GEOCODE      = 'https://nominatim.openstreetmap.org/search';
-    private const USER_AGENT       = 'IPSymcon-Tankstellen/2.0 (+https://github.com/cfaf2002/Tankstelle_Symcon)';
+    private const USER_AGENT       = 'IPSymcon-Tankstellen/3.0 (+https://github.com/cfaf2002/Tankstelle_Symcon)';
     private const LOCATION_CONTROL = '{45E97A63-F870-408A-B259-2933F7EABF74}';
 
-    // Kraftstoffe der Markttransparenzstelle: Index = Wert der Variable "FuelType"
+    /**
+     * Alle Sorten, die die Tankerkönig-API liefern kann. Index = Wert der Variable "FuelType".
+     * Die Markttransparenzstelle meldet derzeit E5, E10 und Diesel. API v4 sieht zusätzlich
+     * LPG und CNG vor – das Modul übernimmt diese automatisch, sobald sie geliefert werden.
+     */
     private const FUELS = [
-        0 => ['key' => 'e5',     'label' => 'Super E5',  'short' => 'E5',     'prop' => 'FuelE5'],
-        1 => ['key' => 'e10',    'label' => 'Super E10', 'short' => 'E10',    'prop' => 'FuelE10'],
-        2 => ['key' => 'diesel', 'label' => 'Diesel',    'short' => 'Diesel', 'prop' => 'FuelDiesel']
+        0 => ['key' => 'e5',        'label' => 'Super E5',      'short' => 'E5',     'prop' => 'FuelE5',        'stat' => 'E5'],
+        1 => ['key' => 'e10',       'label' => 'Super E10',     'short' => 'E10',    'prop' => 'FuelE10',       'stat' => 'E10'],
+        2 => ['key' => 'diesel',    'label' => 'Diesel',        'short' => 'Diesel', 'prop' => 'FuelDiesel',    'stat' => 'Diesel'],
+        3 => ['key' => 'superplus', 'label' => 'Super Plus',    'short' => 'Plus',   'prop' => 'FuelSuperPlus', 'stat' => 'SuperPlus'],
+        4 => ['key' => 'lpg',       'label' => 'Autogas (LPG)', 'short' => 'LPG',    'prop' => 'FuelLPG',       'stat' => 'LPG'],
+        5 => ['key' => 'cng',       'label' => 'Erdgas (CNG)',  'short' => 'CNG',    'prop' => 'FuelCNG',       'stat' => 'CNG']
     ];
 
-    private const MIN_INTERVAL     = 5;       // Minuten – Vorgabe Tankerkönig für automatische Abfragen
-    private const MIN_MANUAL_GAP   = 60;      // Sekunden – Schutz vor Klick-Serien in der Kachel
-    private const MAX_RADIUS       = 25;      // km – Grenze der API
-    private const MAX_RESPONSE     = 2097152; // 2 MB – größere Antworten werden abgebrochen
+    private const COMPLAINT_TYPES = [
+        'wrongPriceE5', 'wrongPriceE10', 'wrongPriceDiesel', 'wrongStatusOpen', 'wrongStatusClosed',
+        'wrongPetrolStationName', 'wrongPetrolStationBrand', 'wrongPetrolStationStreet', 'wrongPetrolStationHouseNumber',
+        'wrongPetrolStationPostcode', 'wrongPetrolStationPlace', 'wrongPetrolStationLocation'
+    ];
+
+    private const MIN_INTERVAL   = 5;        // Minuten – Vorgabe Tankerkönig für Hausautomation
+    private const MIN_GAP        = 60;       // Sekunden – Tankerkönig: max. 1 Anfrage pro Minute je API-Key
+    private const STATS_MAX_AGE  = 21600;    // 6 Stunden – Bundesdurchschnitt ändert sich langsam
+    private const LEGACY_RETRY   = 86400;    // nach Ausfall von v4 einen Tag lang v1 nutzen
+    private const MAX_RADIUS     = 25;       // km – Grenze der API
+    private const MAX_RESPONSE   = 2097152;  // 2 MB
 
     private const SOURCE_SYMCON = 0;
     private const SOURCE_CUSTOM = 1;
@@ -54,9 +70,9 @@ class Tankstellen extends IPSModule
         $this->RegisterPropertyString('PLZ', '');
         $this->RegisterPropertyInteger('Radius', 5);
 
-        // Kraftstoffe
-        foreach (self::FUELS as $fuel) {
-            $this->RegisterPropertyBoolean($fuel['prop'], true);
+        // Kraftstoffe – die drei gemeldeten Sorten an, weitere vorbereitet
+        foreach (self::FUELS as $i => $fuel) {
+            $this->RegisterPropertyBoolean($fuel['prop'], $i <= 2);
         }
 
         // Abfrage
@@ -66,6 +82,7 @@ class Tankstellen extends IPSModule
         $this->RegisterPropertyInteger('MaxEntries', 10);
 
         // Extras
+        $this->RegisterPropertyBoolean('EnableNational', true);
         $this->RegisterPropertyBoolean('EnableHTMLBox', false);
         $this->RegisterPropertyBoolean('EnableDetails', true);
         $this->RegisterPropertyBoolean('EnableAlert', false);
@@ -73,11 +90,14 @@ class Tankstellen extends IPSModule
 
         // Interner Speicher
         $this->RegisterAttributeString('GeoCache', '{}');
-        $this->RegisterAttributeString('Cache', '{}');     // normalisierte Stationsdaten aller Kraftstoffe
-        $this->RegisterAttributeInteger('LastFetch', 0);
+        $this->RegisterAttributeString('Cache', '{}');
+        $this->RegisterAttributeString('Stats', '{}');
+        $this->RegisterAttributeInteger('LastRequest', 0);   // jede Anfrage an Tankerkönig (Ratenlimit)
+        $this->RegisterAttributeInteger('LegacyUntil', 0);
         $this->RegisterAttributeString('LastError', '');
 
         $this->RegisterTimer('Update', 0, 'TANK_Update($_IPS[\'TARGET\']);');
+        $this->RegisterTimer('Stats', 0, 'TANK_UpdateStats($_IPS[\'TARGET\']);');
 
         $this->SetVisualizationType(1);
     }
@@ -90,14 +110,14 @@ class Tankstellen extends IPSModule
 
         if (!$this->ValidateConfig()) {
             $this->SetTimerInterval('Update', 0);
+            $this->SetTimerInterval('Stats', 0);
             if (IPS_GetKernelRunlevel() === KR_READY) {
                 $this->Publish();
             }
             return;
         }
 
-        $interval = max(self::MIN_INTERVAL, $this->ReadPropertyInteger('UpdateInterval'));
-        $this->SetTimerInterval('Update', $interval * 60 * 1000);
+        $this->SetUpdateTimer();
         $this->SetStatus(IS_ACTIVE);
 
         if (IPS_GetKernelRunlevel() === KR_READY) {
@@ -124,19 +144,15 @@ class Tankstellen extends IPSModule
                     throw new Exception($this->Translate('Ungültige oder deaktivierte Kraftstoffart'));
                 }
                 $this->SetValue('FuelType', $index);
-                // Kein API-Abruf nötig: alle Kraftstoffe liegen bereits im Cache
-                $this->Publish();
+                $this->Publish(); // alle Sorten liegen im Zwischenspeicher – kein API-Abruf
                 break;
 
             case 'Refresh':
-                if (!$this->ReadPropertyBoolean('Active')) {
-                    return;
+                if ($this->ReadPropertyBoolean('Active') && $this->RequestAllowed()) {
+                    $this->Update();
+                } else {
+                    $this->Publish();
                 }
-                if (time() - $this->ReadAttributeInteger('LastFetch') < self::MIN_MANUAL_GAP) {
-                    $this->Publish(); // zu früh – vorhandene Daten erneut senden
-                    return;
-                }
-                $this->Update();
                 break;
 
             default:
@@ -145,7 +161,7 @@ class Tankstellen extends IPSModule
     }
 
     /**
-     * Preise aller Kraftstoffe mit einem einzigen API-Aufruf abrufen.
+     * Preise aller Sorten mit einem einzigen API-Aufruf abrufen.
      */
     public function Update(): bool
     {
@@ -154,7 +170,14 @@ class Tankstellen extends IPSModule
             return false;
         }
 
-        // Parallele Aufrufe (Timer + Button + Kachel) verhindern
+        // Ratenlimit: höchstens eine Anfrage pro Minute – sonst kurz verschieben
+        if (!$this->RequestAllowed()) {
+            $this->SetTimerInterval('Update', (self::MIN_GAP + 5) * 1000);
+            $this->Publish();
+            return false;
+        }
+        $this->SetUpdateTimer();
+
         $lock = 'TANK_Update_' . $this->InstanceID;
         if (!IPS_SemaphoreEnter($lock, 15000)) {
             return false;
@@ -167,35 +190,29 @@ class Tankstellen extends IPSModule
                 return $this->Fail($this->Translate('Kein Standort – bitte Standort in Symcon, auf der Karte oder per PLZ festlegen.'));
             }
 
-            $url = self::API_LIST . '?' . http_build_query([
-                'lat'    => $location['lat'],
-                'lng'    => $location['lon'],
-                'rad'    => $this->GetRadius(),
-                'sort'   => 'dist',  // bei type=all von der API vorgeschrieben
-                'type'   => 'all',
-                'apikey' => trim($this->ReadPropertyString('APIKey'))
-            ]);
+            $useLegacy = time() < $this->ReadAttributeInteger('LegacyUntil');
+            [$stations, $error, $code] = $useLegacy ? $this->FetchV1($location) : $this->FetchV4($location);
 
-            $response = $this->HttpGet($url);
-            if ($response === null) {
-                $this->SetStatus(self::STATUS_API_ERROR);
-                return $this->Fail($this->Translate('Tankerkönig-API nicht erreichbar.'));
+            // v4 nicht verfügbar (z. B. abgeschaltet): beim nächsten Lauf auf die bewährte v1 ausweichen.
+            // Nicht sofort – Tankerkönig erlaubt nur eine Anfrage pro Minute.
+            if ($stations === null && !$useLegacy && in_array($code, [404, 410], true)) {
+                $this->WriteAttributeInteger('LegacyUntil', time() + self::LEGACY_RETRY);
+                $this->SendDebug('API', 'v4 nicht verfügbar – nächster Abruf über v1', 0);
             }
 
-            $data = json_decode($response, true);
-            if (!is_array($data) || ($data['ok'] ?? false) !== true || !isset($data['stations']) || !is_array($data['stations'])) {
-                $message = is_array($data) && isset($data['message']) ? mb_substr((string) $data['message'], 0, 200) : $this->Translate('Ungültige Antwort');
-                $this->SetStatus(stripos($message, 'apikey') !== false ? self::STATUS_BAD_KEY : self::STATUS_API_ERROR);
-                return $this->Fail('Tankerkönig: ' . $message);
+            if ($stations === null) {
+                $this->SetStatus($code === 401 || stripos($error, 'apikey') !== false ? self::STATUS_BAD_KEY : self::STATUS_API_ERROR);
+                return $this->Fail($error);
             }
 
             $this->WriteAttributeString('Cache', json_encode([
-                'fetched'  => time(),
-                'stations' => $this->NormalizeStations($data['stations'])
+                'fetched' => time(),
+                'api'     => $useLegacy ? 'v1' : 'v4',
+                'stations' => $stations
             ]));
-            $this->WriteAttributeInteger('LastFetch', time());
             $this->WriteAttributeString('LastError', '');
             $this->SetStatus(IS_ACTIVE);
+            $this->ScheduleStats();
             $this->Publish();
             return true;
         } finally {
@@ -204,8 +221,70 @@ class Tankstellen extends IPSModule
     }
 
     /**
-     * Stationen eines Kraftstoffs als Array für eigene Skripte.
-     * $Fuel: "e5", "e10", "diesel" oder leer für den aktuell gewählten Kraftstoff.
+     * Bundesweite Durchschnittspreise (API v4 /stats). Wird automatisch alle 6 Stunden
+     * zeitversetzt abgerufen, damit das Ratenlimit von 1 Anfrage/Minute eingehalten wird.
+     */
+    public function UpdateStats(): bool
+    {
+        $this->SetTimerInterval('Stats', 0);
+        if (!$this->ReadPropertyBoolean('EnableNational') || !$this->ValidateConfig()) {
+            return false;
+        }
+        if (!$this->RequestAllowed()) {
+            $this->SetTimerInterval('Stats', (self::MIN_GAP + 5) * 1000);
+            return false;
+        }
+
+        [$code, $body] = $this->HttpRequest(self::API_V4 . '/stats?' . http_build_query(['apikey' => $this->ApiKey()]));
+        $data = $body !== null ? json_decode($body, true) : null;
+        if ($code !== 200 || !is_array($data)) {
+            $this->SendDebug('Stats', 'nicht verfügbar (HTTP ' . $code . ')', 0);
+            return false;
+        }
+
+        $stats = ['fetched' => time()];
+        foreach (self::FUELS as $f) {
+            $s = $data[$f['stat']] ?? null;
+            if (is_array($s) && isset($s['mean']) && is_numeric($s['mean'])) {
+                $stats[$f['key']] = [
+                    'mean'   => round((float) $s['mean'], 3),
+                    'median' => isset($s['median']) && is_numeric($s['median']) ? round((float) $s['median'], 3) : null,
+                    'count'  => (int) ($s['count'] ?? 0)
+                ];
+            }
+        }
+        $this->WriteAttributeString('Stats', json_encode($stats));
+        $this->Publish();
+        return true;
+    }
+
+    /**
+     * Falsche Daten an die Markttransparenzstelle melden.
+     * $Type z. B. "wrongPriceE5", "wrongStatusClosed"; $Correction: richtiger Wert (Preis als 1.799).
+     */
+    public function ReportError(string $StationID, string $Type, string $Correction = ''): bool
+    {
+        if (!$this->ValidateConfig()) {
+            return false;
+        }
+        if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $StationID) || !in_array($Type, self::COMPLAINT_TYPES, true)) {
+            throw new Exception($this->Translate('Ungültige Station oder ungültiger Meldungstyp'));
+        }
+        if (!$this->RequestAllowed()) {
+            throw new Exception($this->Translate('Bitte eine Minute warten (Tankerkönig erlaubt eine Anfrage pro Minute).'));
+        }
+        $fields = ['apikey' => $this->ApiKey(), 'id' => $StationID, 'type' => $Type];
+        if ($Correction !== '') {
+            $fields['correction'] = mb_substr($Correction, 0, 100);
+        }
+        [$code, $body] = $this->HttpRequest(self::API_V1 . '/complaint.php', $fields);
+        $data = $body !== null ? json_decode($body, true) : null;
+        return $code === 200 && is_array($data) && ($data['ok'] ?? false) === true;
+    }
+
+    /**
+     * Stationen einer Sorte als Array für eigene Skripte.
+     * $Fuel: "e5", "e10", "diesel", "superplus", "lpg", "cng" oder leer für die gewählte Sorte.
      */
     public function GetStations(string $Fuel = ''): array
     {
@@ -242,7 +321,24 @@ class Tankstellen extends IPSModule
             ? sprintf($this->Translate('Symcon-Standort: %s, %s'), round($symcon['latitude'], 5), round($symcon['longitude'], 5))
             : $this->Translate('Kein Symcon-Standort gefunden. Bitte unter Kern-Instanzen → Location Control festlegen oder eine andere Quelle wählen.');
 
-        $this->WalkForm($form['elements'], function (array &$el) use ($source, $info) {
+        // Welche Sorten hat die letzte Abfrage geliefert?
+        $seen = [];
+        foreach ($this->ReadCache()['stations'] as $s) {
+            foreach (array_keys(array_filter($s['p'] ?? [])) as $k) {
+                $seen[$k] = true;
+            }
+        }
+        $labels = [];
+        foreach (self::FUELS as $f) {
+            if (isset($seen[$f['key']])) {
+                $labels[] = $f['label'];
+            }
+        }
+        $fuelInfo = empty($labels)
+            ? $this->Translate('Noch keine Abfrage – geliefert werden derzeit üblicherweise E5, E10 und Diesel.')
+            : sprintf($this->Translate('Bei der letzten Abfrage geliefert: %s'), implode(', ', $labels));
+
+        $this->WalkForm($form['elements'], function (array &$el) use ($source, $info, $fuelInfo) {
             switch ($el['name'] ?? '') {
                 case 'SymconLocationInfo':
                     $el['caption'] = $info;
@@ -254,6 +350,9 @@ class Tankstellen extends IPSModule
                 case 'PLZRow':
                     $el['visible'] = $source === self::SOURCE_PLZ;
                     break;
+                case 'FuelInfo':
+                    $el['caption'] = $fuelInfo;
+                    break;
             }
         });
         return json_encode($form);
@@ -262,9 +361,200 @@ class Tankstellen extends IPSModule
     public function GetVisualizationTile()
     {
         $html = file_get_contents(__DIR__ . '/module.html');
-        // JSON_HEX_* verhindert, dass Inhalte das <script>-Tag aufbrechen
         $payload = json_encode($this->BuildTileData(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
         return $html . '<script>handleMessage(' . $payload . ');</script>';
+    }
+
+    // ------------------------------------------------------------------
+    // Abruf
+    // ------------------------------------------------------------------
+
+    /** API v4: alle Sorten, Öffnungszeiten, letzte Preisänderung */
+    private function FetchV4(array $loc): array
+    {
+        [$code, $body] = $this->HttpRequest(self::API_V4 . '/stations/search?' . http_build_query([
+            'apikey' => $this->ApiKey(),
+            'lat'    => $loc['lat'],
+            'lng'    => $loc['lon'],
+            'rad'    => $this->GetRadius()
+        ]));
+        $data = $body !== null ? json_decode($body, true) : null;
+
+        if ($code !== 200 || !is_array($data) || !isset($data['stations']) || !is_array($data['stations'])) {
+            return [null, $this->ApiError($code, $data), $code];
+        }
+        return [$this->ParseV4($data['stations']), '', $code];
+    }
+
+    private function ParseV4(array $raw): array
+    {
+        $stations = [];
+        foreach ($raw as $s) {
+            if (!is_array($s)) {
+                continue;
+            }
+            $prices = [];
+            $changes = [];
+            foreach ((array) ($s['fuels'] ?? []) as $fuel) {
+                if (!is_array($fuel) || !isset($fuel['price']) || !is_numeric($fuel['price']) || (float) $fuel['price'] <= 0) {
+                    continue;
+                }
+                $key = $this->FuelKey((string) ($fuel['name'] ?? ''), (string) ($fuel['category'] ?? ''));
+                if ($key === null) {
+                    $this->SendDebug('Unbekannte Sorte', json_encode($fuel), 0);
+                    continue;
+                }
+                if (isset($prices[$key])) {
+                    continue; // erste Angabe gewinnt (z. B. "Diesel" vor "Premium Diesel")
+                }
+                $prices[$key] = round((float) $fuel['price'], 3);
+                $lc = $fuel['lastChange'] ?? null;
+                if (is_array($lc) && isset($lc['amount']) && is_numeric($lc['amount'])) {
+                    $ts = isset($lc['timestamp']) ? strtotime((string) $lc['timestamp']) : false;
+                    $changes[$key] = ['a' => round((float) $lc['amount'], 3), 't' => $ts ?: 0];
+                }
+            }
+            $station = $this->BaseStation(
+                $s,
+                trim((string) ($s['street'] ?? '')),
+                trim((string) ($s['postalCode'] ?? '') . ' ' . ($s['place'] ?? '')),
+                $prices
+            );
+            if ($station === null) {
+                continue;
+            }
+            $station['c']  = $changes;
+            $station['oa'] = isset($s['opensAt']) ? (int) strtotime((string) $s['opensAt']) : 0;
+            $station['ca'] = isset($s['closesAt']) ? (int) strtotime((string) $s['closesAt']) : 0;
+            $stations[] = $station;
+        }
+        return $stations;
+    }
+
+    /** API v1 (list.php, type=all): Rückfallebene – E5, E10, Diesel */
+    private function FetchV1(array $loc): array
+    {
+        [$code, $body] = $this->HttpRequest(self::API_V1 . '/list.php?' . http_build_query([
+            'lat'    => $loc['lat'],
+            'lng'    => $loc['lon'],
+            'rad'    => $this->GetRadius(),
+            'sort'   => 'dist',
+            'type'   => 'all',
+            'apikey' => $this->ApiKey()
+        ]));
+        $data = $body !== null ? json_decode($body, true) : null;
+        if ($code !== 200 || !is_array($data) || ($data['ok'] ?? false) !== true || !isset($data['stations']) || !is_array($data['stations'])) {
+            return [null, $this->ApiError($code, $data), $code];
+        }
+        return [$this->ParseV1($data['stations']), '', $code];
+    }
+
+    private function ParseV1(array $raw): array
+    {
+        $stations = [];
+        foreach ($raw as $s) {
+            if (!is_array($s)) {
+                continue;
+            }
+            $prices = [];
+            foreach (['e5', 'e10', 'diesel'] as $k) {
+                $p = $s[$k] ?? null;
+                if (is_numeric($p) && (float) $p > 0) {
+                    $prices[$k] = round((float) $p, 3);
+                }
+            }
+            $street = trim(($s['street'] ?? '') . ' ' . ($s['houseNumber'] ?? ''));
+            $station = $this->BaseStation($s, $street, trim(($s['postCode'] ?? '') . ' ' . ($s['place'] ?? '')), $prices);
+            if ($station !== null) {
+                $station['c'] = [];
+                $station['oa'] = 0;
+                $station['ca'] = 0;
+                $stations[] = $station;
+            }
+        }
+        return $stations;
+    }
+
+    private function BaseStation(array $s, string $street, string $place, array $prices): ?array
+    {
+        if (empty($prices)) {
+            return null;
+        }
+        $brand = trim((string) ($s['brand'] ?? ''));
+        $name  = trim((string) ($s['name'] ?? ''));
+        return [
+            'id' => mb_substr((string) ($s['id'] ?? ''), 0, 64),
+            'n'  => mb_substr($brand !== '' ? $brand : $name, 0, 80),
+            'b'  => mb_substr($brand, 0, 40),
+            'a'  => mb_substr(trim($street . ', ' . $place, ' ,'), 0, 120),
+            'd'  => round((float) ($s['dist'] ?? 0), 1),
+            'o'  => !empty($s['isOpen']),
+            'p'  => $prices
+        ];
+    }
+
+    /** Ordnet einen Sortennamen der API einer Sorte des Moduls zu */
+    private function FuelKey(string $name, string $category): ?string
+    {
+        $n = strtolower($name);
+        switch (strtolower($category)) {
+            case 'lpg':
+                return 'lpg';
+            case 'cng':
+                return 'cng';
+            case 'diesel':
+                return (strpos($n, 'premium') === false && strpos($n, 'plus') === false) ? 'diesel' : null;
+            case 'gasoline':
+                if (strpos($n, 'e10') !== false) {
+                    return 'e10';
+                }
+                if (strpos($n, 'plus') !== false || strpos($n, '98') !== false || strpos($n, '100') !== false) {
+                    return 'superplus';
+                }
+                if (strpos($n, 'e5') !== false || $n === 'super') {
+                    return 'e5';
+                }
+                return null;
+        }
+        return null;
+    }
+
+    private function ApiError(int $code, $data): string
+    {
+        $message = is_array($data) && isset($data['message']) && is_string($data['message']) ? mb_substr($data['message'], 0, 200) : '';
+        switch ($code) {
+            case 0:
+                return $this->Translate('Tankerkönig-API nicht erreichbar.');
+            case 401:
+                return $this->Translate('API-Key ungültig.');
+            case 503:
+                return $this->Translate('Tankerkönig: zu viele Anfragen – bitte Intervall erhöhen.');
+        }
+        return 'Tankerkönig: ' . ($message !== '' ? $message : sprintf($this->Translate('Fehler (HTTP %d)'), $code));
+    }
+
+    private function ScheduleStats(): void
+    {
+        if (!$this->ReadPropertyBoolean('EnableNational')) {
+            return;
+        }
+        $stats = json_decode($this->ReadAttributeString('Stats'), true);
+        if (time() - (int) ($stats['fetched'] ?? 0) > self::STATS_MAX_AGE) {
+            // zeitversetzt nach dem Preisabruf, damit das Ratenlimit eingehalten wird
+            $this->SetTimerInterval('Stats', (self::MIN_GAP + random_int(5, 30)) * 1000);
+        }
+    }
+
+    /** Tankerkönig bittet um zufällige Abfragezeitpunkte – jedes Intervall bekommt einen neuen Versatz */
+    private function SetUpdateTimer(): void
+    {
+        $seconds = max(self::MIN_INTERVAL, $this->ReadPropertyInteger('UpdateInterval')) * 60 + random_int(0, 59);
+        $this->SetTimerInterval('Update', $seconds * 1000);
+    }
+
+    private function RequestAllowed(): bool
+    {
+        return time() - $this->ReadAttributeInteger('LastRequest') >= self::MIN_GAP;
     }
 
     // ------------------------------------------------------------------
@@ -277,10 +567,8 @@ class Tankstellen extends IPSModule
         if (!$modern) {
             $this->CreateLegacyProfiles();
         }
-
         $enabled = $this->EnabledFuelIndexes();
 
-        // Auswahl des Kraftstoffs – nur aktivierte Sorten als Optionen, nebeneinander zum Antippen
         $options = [];
         foreach ($enabled as $i) {
             $options[] = ['Value' => $i, 'Caption' => self::FUELS[$i]['label'], 'IconActive' => false, 'IconValue' => '', 'Color' => -1];
@@ -297,6 +585,7 @@ class Tankstellen extends IPSModule
         }
 
         $price    = $modern ? ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'SUFFIX' => ' €', 'DIGITS' => 3, 'ICON' => 'euro-sign'] : 'TANK.Price';
+        $delta    = $modern ? ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'SUFFIX' => ' ct', 'DIGITS' => 1, 'ICON' => 'scale-balanced'] : 'TANK.Cent';
         $distance = $modern ? ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'SUFFIX' => ' km', 'DIGITS' => 1, 'ICON' => 'route'] : 'TANK.Distance';
         $text     = $modern ? ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'ICON' => 'gas-pump'] : '';
         $count    = $modern ? ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'ICON' => 'hashtag'] : '';
@@ -309,11 +598,9 @@ class Tankstellen extends IPSModule
             ])]
             : '~Alert.Reversed';
 
-        // Gewählter Kraftstoff
         $this->MaintainVariable('CheapestPrice', $this->Translate('Günstigster Preis'), VARIABLETYPE_FLOAT, $price, 20, true);
         $this->MaintainVariable('CheapestName', $this->Translate('Günstigste Tankstelle'), VARIABLETYPE_STRING, $text, 21, true);
 
-        // Bestpreis je aktiviertem Kraftstoff – ideal fürs Archiv
         foreach (self::FUELS as $i => $f) {
             $this->MaintainVariable('Price_' . $f['key'], sprintf($this->Translate('Bestpreis %s'), $f['label']), VARIABLETYPE_FLOAT, $price, 30 + $i, in_array($i, $enabled, true));
         }
@@ -325,12 +612,15 @@ class Tankstellen extends IPSModule
         $this->MaintainVariable('HighestPrice', $this->Translate('Höchster Preis'), VARIABLETYPE_FLOAT, $price, 43, $details);
         $this->MaintainVariable('StationCount', $this->Translate('Anzahl Tankstellen'), VARIABLETYPE_INTEGER, $count, 44, $details);
 
+        $national = $this->ReadPropertyBoolean('EnableNational');
+        $this->MaintainVariable('NationalAverage', $this->Translate('Bundesdurchschnitt'), VARIABLETYPE_FLOAT, $price, 45, $national);
+        $this->MaintainVariable('SavingVsNational', $this->Translate('Ersparnis zum Bundesschnitt'), VARIABLETYPE_FLOAT, $delta, 46, $national);
+
         $this->MaintainVariable('HTML', $this->Translate('Übersicht'), VARIABLETYPE_STRING, $html, 50, $this->ReadPropertyBoolean('EnableHTMLBox'));
         $this->MaintainVariable('PriceAlert', $this->Translate('Preis unter Schwelle'), VARIABLETYPE_BOOLEAN, $alert, 60, $this->ReadPropertyBoolean('EnableAlert'));
         $this->MaintainVariable('LastUpdate', $this->Translate('Letzte Aktualisierung'), VARIABLETYPE_INTEGER, $stamp, 90, true);
     }
 
-    /** Darstellungen gibt es ab Symcon 8.0 */
     private function HasPresentations(): bool
     {
         return defined('VARIABLE_PRESENTATION_VALUE_PRESENTATION') && defined('VARIABLE_PRESENTATION_ENUMERATION')
@@ -342,21 +632,17 @@ class Tankstellen extends IPSModule
         if (!IPS_VariableProfileExists('TANK.FuelType')) {
             IPS_CreateVariableProfile('TANK.FuelType', VARIABLETYPE_INTEGER);
             IPS_SetVariableProfileIcon('TANK.FuelType', 'Gauge');
-            foreach (self::FUELS as $i => $f) {
-                IPS_SetVariableProfileAssociation('TANK.FuelType', $i, $f['label'], '', -1);
+        }
+        foreach (self::FUELS as $i => $f) {
+            IPS_SetVariableProfileAssociation('TANK.FuelType', $i, $f['label'], '', -1);
+        }
+        foreach (['TANK.Price' => [3, ' €', 'Euro'], 'TANK.Distance' => [1, ' km', 'Distance'], 'TANK.Cent' => [1, ' ct', 'Euro']] as $name => [$digits, $suffix, $icon]) {
+            if (!IPS_VariableProfileExists($name)) {
+                IPS_CreateVariableProfile($name, VARIABLETYPE_FLOAT);
+                IPS_SetVariableProfileDigits($name, $digits);
+                IPS_SetVariableProfileText($name, '', $suffix);
+                IPS_SetVariableProfileIcon($name, $icon);
             }
-        }
-        if (!IPS_VariableProfileExists('TANK.Price')) {
-            IPS_CreateVariableProfile('TANK.Price', VARIABLETYPE_FLOAT);
-            IPS_SetVariableProfileDigits('TANK.Price', 3);
-            IPS_SetVariableProfileText('TANK.Price', '', ' €');
-            IPS_SetVariableProfileIcon('TANK.Price', 'Euro');
-        }
-        if (!IPS_VariableProfileExists('TANK.Distance')) {
-            IPS_CreateVariableProfile('TANK.Distance', VARIABLETYPE_FLOAT);
-            IPS_SetVariableProfileDigits('TANK.Distance', 1);
-            IPS_SetVariableProfileText('TANK.Distance', '', ' km');
-            IPS_SetVariableProfileIcon('TANK.Distance', 'Distance');
         }
     }
 
@@ -364,9 +650,6 @@ class Tankstellen extends IPSModule
     // Daten aufbereiten & veröffentlichen
     // ------------------------------------------------------------------
 
-    /**
-     * Verteilt die gecachten Daten auf Variablen, HTML-Box und Kachel – ohne API-Aufruf.
-     */
     private function Publish(): void
     {
         $selected = $this->SelectedFuelIndex();
@@ -387,49 +670,25 @@ class Tankstellen extends IPSModule
         return false;
     }
 
-    private function NormalizeStations(array $raw): array
-    {
-        $stations = [];
-        foreach ($raw as $s) {
-            if (!is_array($s)) {
-                continue;
-            }
-            $prices = [];
-            foreach (self::FUELS as $f) {
-                $p = $s[$f['key']] ?? null;
-                $prices[$f['key']] = is_numeric($p) && (float) $p > 0 ? round((float) $p, 3) : null;
-            }
-            if (count(array_filter($prices)) === 0) {
-                continue;
-            }
-            $street = trim(($s['street'] ?? '') . ' ' . ($s['houseNumber'] ?? ''));
-            $place  = trim(($s['postCode'] ?? '') . ' ' . ($s['place'] ?? ''));
-            $brand  = trim((string) ($s['brand'] ?? ''));
-            $name   = trim((string) ($s['name'] ?? ''));
-            $stations[] = [
-                'id' => mb_substr((string) ($s['id'] ?? ''), 0, 64),
-                'n'  => mb_substr($brand !== '' ? $brand : $name, 0, 80),
-                'a'  => mb_substr(trim($street . ', ' . $place, ' ,'), 0, 120),
-                'd'  => round((float) ($s['dist'] ?? 0), 1),
-                'o'  => !empty($s['isOpen']),
-                'p'  => $prices
-            ];
-        }
-        return $stations;
-    }
-
     private function ReadCache(): array
     {
         $cache = json_decode($this->ReadAttributeString('Cache'), true);
-        return is_array($cache) && isset($cache['stations']) ? $cache : ['fetched' => 0, 'stations' => []];
+        return is_array($cache) && isset($cache['stations']) && is_array($cache['stations']) ? $cache : ['fetched' => 0, 'stations' => []];
     }
 
-    /**
-     * Auswertung für einen Kraftstoff: gefilterte, sortierte Liste + Kennzahlen.
-     */
+    private function NationalFor(int $index): ?array
+    {
+        if (!$this->ReadPropertyBoolean('EnableNational')) {
+            return null;
+        }
+        $stats = json_decode($this->ReadAttributeString('Stats'), true);
+        $s = is_array($stats) ? ($stats[self::FUELS[$index]['key']] ?? null) : null;
+        return is_array($s) ? $s : null;
+    }
+
     private function BuildFuelResult(?int $index, ?array $cache = null): array
     {
-        $empty = ['stations' => [], 'cheapest' => null, 'min' => null, 'max' => null, 'avg' => null, 'count' => 0];
+        $empty = ['stations' => [], 'cheapest' => null, 'min' => null, 'max' => null, 'avg' => null, 'count' => 0, 'national' => null];
         if ($index === null || !isset(self::FUELS[$index])) {
             return $empty;
         }
@@ -443,10 +702,24 @@ class Tankstellen extends IPSModule
             if ($price === null || ($onlyOpen && !$s['o'])) {
                 continue;
             }
-            $list[] = ['id' => $s['id'], 'name' => $s['n'], 'address' => $s['a'], 'distance' => $s['d'], 'isOpen' => $s['o'], 'price' => $price];
+            $change = $s['c'][$key] ?? null;
+            $list[] = [
+                'id'       => $s['id'],
+                'name'     => $s['n'],
+                'brand'    => $s['b'] ?? '',
+                'address'  => $s['a'],
+                'distance' => $s['d'],
+                'isOpen'   => $s['o'],
+                'price'    => $price,
+                'change'   => $change['a'] ?? null,
+                'changed'  => $change['t'] ?? null,
+                'opensAt'  => ($s['oa'] ?? 0) ?: null,
+                'closesAt' => ($s['ca'] ?? 0) ?: null
+            ];
         }
+        $national = $this->NationalFor($index);
         if (empty($list)) {
-            return $empty;
+            return array_merge($empty, ['national' => $national]);
         }
 
         $sorted = $list;
@@ -466,7 +739,8 @@ class Tankstellen extends IPSModule
             'min'      => min($prices),
             'max'      => max($prices),
             'avg'      => round(array_sum($prices) / count($prices), 3),
-            'count'    => count($prices)
+            'count'    => count($prices),
+            'national' => $national
         ];
     }
 
@@ -491,6 +765,11 @@ class Tankstellen extends IPSModule
             $this->SetValueIfChanged('HighestPrice', (float) ($r['max'] ?? 0));
             $this->SetValueIfChanged('StationCount', (int) $r['count']);
         }
+        if ($this->ReadPropertyBoolean('EnableNational')) {
+            $mean = $r['national']['mean'] ?? null;
+            $this->SetValueIfChanged('NationalAverage', (float) ($mean ?? 0));
+            $this->SetValueIfChanged('SavingVsNational', ($mean !== null && $c) ? round(($mean - $c['price']) * 100, 1) : 0.0);
+        }
         if ($this->ReadPropertyBoolean('EnableAlert')) {
             $this->SetValueIfChanged('PriceAlert', $c !== null && $c['price'] <= $this->ReadPropertyFloat('AlertThreshold'));
         }
@@ -499,10 +778,6 @@ class Tankstellen extends IPSModule
         }
     }
 
-    /**
-     * Kompakte Daten für die Kachel: alle aktivierten Kraftstoffe auf einmal,
-     * damit das Umschalten in der Kachel ohne Server-Rundreise sofort erfolgt.
-     */
     private function BuildTileData(): array
     {
         $cache = $this->ReadCache();
@@ -518,6 +793,7 @@ class Tankstellen extends IPSModule
                 'max'      => $r['max'],
                 'avg'      => $r['avg'],
                 'count'    => $r['count'],
+                'national' => $r['national']['mean'] ?? null,
                 'cheapest' => $r['cheapest'],
                 'stations' => $r['stations']
             ];
@@ -563,19 +839,19 @@ class Tankstellen extends IPSModule
         $error = $this->CurrentError($this->EnabledFuelIndexes());
 
         $h = '<style>'
-            . '.tk{font-family:inherit;color:inherit;line-height:1.4}.tk *{box-sizing:border-box}'
+            . '.tk{font-family:Poppins,"Segoe UI",system-ui,Arial,sans-serif;color:var(--tk-text,#fff);line-height:1.4}.tk *{box-sizing:border-box}'
             . '.tk-head{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px;margin-bottom:10px}'
             . '.tk-head b{font-size:18px}.tk-meta{font-size:12px;opacity:.65}'
-            . '.tk-best{background:rgba(34,177,76,.15);border:1px solid rgba(34,177,76,.35);border-radius:12px;padding:12px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px}'
-            . '.tk-best .nm{font-size:16px;font-weight:700}.tk-best .ad{font-size:12px;opacity:.7}.tk-best .pr{font-size:30px;font-weight:800;color:#22b14c;white-space:nowrap}'
+            . '.tk-best{background:rgba(34,177,76,.15);border-radius:16px;padding:12px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px}'
+            . '.tk-best .nm{font-size:16px;font-weight:600}.tk-best .ad{font-size:12px;opacity:.7}.tk-best .pr{font-size:30px;font-weight:600;color:#22b14c;white-space:nowrap}'
             . '.tk sup{font-size:.55em}.tk table{width:100%;border-collapse:collapse}'
-            . '.tk td{padding:7px 4px;border-top:1px solid rgba(127,127,127,.2)}.tk .r{text-align:right;white-space:nowrap}'
-            . '.tk .p{font-weight:700}.tk .a{font-size:11px;opacity:.65}.tk .best .p{color:#22b14c}.tk .closed{opacity:.45}'
-            . '.tk-msg{padding:10px;border-radius:8px;background:rgba(127,127,127,.15);margin-bottom:10px}.tk-err{background:rgba(229,72,77,.15);color:#e5484d}'
+            . '.tk td{padding:7px 4px;border-top:1px solid rgba(127,127,127,.18)}.tk .r{text-align:right;white-space:nowrap}'
+            . '.tk .p{font-weight:600}.tk .a{font-size:11px;opacity:.65}.tk .best .p{color:#22b14c}.tk .closed{opacity:.45}'
+            . '.tk-msg{padding:10px;border-radius:10px;background:rgba(127,127,127,.15);margin-bottom:10px}.tk-err{background:rgba(229,72,77,.15);color:#e5484d}'
             . '.tk-foot{font-size:10px;opacity:.5;text-align:right;margin-top:6px}'
             . '</style><div class="tk">';
 
-        $h .= '<div class="tk-head"><b>⛽ ' . $e($label) . '</b><span class="tk-meta">' . $e((int) $this->GetRadius()) . ' km'
+        $h .= '<div class="tk-head"><b>' . $e($label) . '</b><span class="tk-meta">' . $e((int) $this->GetRadius()) . ' km'
             . ($fetched > 0 ? ' · ' . date('d.m.Y H:i', $fetched) : '') . '</span></div>';
 
         if ($error !== '') {
@@ -596,12 +872,20 @@ class Tankstellen extends IPSModule
             $h .= '<div class="tk-msg">' . $e($this->Translate('Keine passenden Tankstellen gefunden.')) . '</div>';
         }
 
-        return $h . '<div class="tk-foot">Tankerkönig / MTS-K · CC BY 4.0</div></div>';
+        $theme = '<script>(function(){try{var n=window.frameElement;while(n&&n.nodeType===1){var v=(getComputedStyle(n).backgroundColor.match(/[\\d.]+/g)||[]).map(Number);'
+            . 'if(v.length>=3&&(v.length<4||v[3]>0.5)){document.documentElement.style.setProperty("--tk-text",(0.2126*v[0]+0.7152*v[1]+0.0722*v[2])/255<0.5?"#fff":"#1c1c1e");return;}n=n.parentElement;}}catch(e){}})();</script>';
+
+        return $h . '<div class="tk-foot">Tankerkönig / MTS-K · CC BY 4.0</div></div>' . $theme;
     }
 
     // ------------------------------------------------------------------
     // Hilfsfunktionen
     // ------------------------------------------------------------------
+
+    private function ApiKey(): string
+    {
+        return trim($this->ReadPropertyString('APIKey'));
+    }
 
     private function EnabledFuelIndexes(): array
     {
@@ -630,7 +914,7 @@ class Tankstellen extends IPSModule
             $this->SetStatus(IS_INACTIVE);
             return false;
         }
-        $key = trim($this->ReadPropertyString('APIKey'));
+        $key = $this->ApiKey();
         if ($key === '') {
             $this->SetStatus(self::STATUS_NO_KEY);
             return false;
@@ -668,7 +952,6 @@ class Tankstellen extends IPSModule
         return $loc !== null ? ['lat' => $loc['latitude'], 'lon' => $loc['longitude']] : null;
     }
 
-    /** Standort aus der Kern-Instanz „Location Control“ */
     private function ReadSymconLocation(): ?array
     {
         if (!function_exists('IPS_GetInstanceListByModuleID')) {
@@ -718,13 +1001,13 @@ class Tankstellen extends IPSModule
         if (!preg_match('/^\d{5}$/', $plz)) {
             return null;
         }
-        $response = $this->HttpGet(self::API_GEOCODE . '?' . http_build_query([
+        [$code, $body] = $this->HttpRequest(self::API_GEOCODE . '?' . http_build_query([
             'postalcode' => $plz,
             'country'    => 'Germany',
             'format'     => 'json',
             'limit'      => 1
         ]));
-        $data = $response !== null ? json_decode($response, true) : null;
+        $data = $code === 200 && $body !== null ? json_decode($body, true) : null;
         if (!is_array($data) || !isset($data[0]['lat'], $data[0]['lon']) || !is_numeric($data[0]['lat']) || !is_numeric($data[0]['lon'])) {
             $this->LogMessage(sprintf('Geocoding fehlgeschlagen: PLZ %s', $plz), KL_WARNING);
             return null;
@@ -732,13 +1015,21 @@ class Tankstellen extends IPSModule
         return ['lat' => round((float) $data[0]['lat'], 5), 'lon' => round((float) $data[0]['lon'], 5)];
     }
 
-    private function HttpGet(string $url): ?string
+    /**
+     * HTTPS-Anfrage. Liefert [HTTP-Code, Body|null]; Code 0 = keine Verbindung.
+     * Mit $post wird ein Formular per POST gesendet.
+     */
+    private function HttpRequest(string $url, ?array $post = null): array
     {
+        $isTankerkoenig = strpos($url, 'tankerkoenig.de') !== false;
+        if ($isTankerkoenig) {
+            $this->WriteAttributeInteger('LastRequest', time());
+        }
         // API-Key nie im Klartext ins Debug schreiben
-        $this->SendDebug('GET', preg_replace('/apikey=[^&]+/', 'apikey=***', $url), 0);
+        $this->SendDebug($post === null ? 'GET' : 'POST', preg_replace('/apikey=[^&]+/', 'apikey=***', $url), 0);
 
         $ch = curl_init($url);
-        curl_setopt_array($ch, [
+        $options = [
             CURLOPT_RETURNTRANSFER   => true,
             CURLOPT_CONNECTTIMEOUT   => 5,
             CURLOPT_TIMEOUT          => 10,
@@ -747,11 +1038,16 @@ class Tankstellen extends IPSModule
             CURLOPT_SSL_VERIFYPEER   => true,
             CURLOPT_SSL_VERIFYHOST   => 2,
             CURLOPT_PROTOCOLS        => CURLPROTO_HTTPS,
-            CURLOPT_ENCODING         => '',   // gzip/deflate annehmen – spart Bandbreite
+            CURLOPT_ENCODING         => '',
             CURLOPT_HTTPHEADER       => ['Accept: application/json'],
             CURLOPT_NOPROGRESS       => false,
             CURLOPT_PROGRESSFUNCTION => fn ($ch, $dlTotal, $dlNow) => $dlNow > self::MAX_RESPONSE ? 1 : 0
-        ]);
+        ];
+        if ($post !== null) {
+            $options[CURLOPT_POST] = true;
+            $options[CURLOPT_POSTFIELDS] = http_build_query($post);
+        }
+        curl_setopt_array($ch, $options);
         $body = curl_exec($ch);
         $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err  = curl_error($ch);
@@ -759,11 +1055,10 @@ class Tankstellen extends IPSModule
 
         if (!is_string($body) || $body === '') {
             $this->SendDebug('HTTP-Fehler', sprintf('Code %d %s', $code, $err), 0);
-            return null;
+            return [$code, null];
         }
-        $this->SendDebug('Antwort ' . $code, mb_substr($body, 0, 2000), 0);
-        // Tankerkönig liefert Fehlermeldungen als JSON auch bei 4xx – Auswertung übernimmt Update()
-        return ($code >= 200 && $code < 500) ? $body : null;
+        $this->SendDebug('Antwort ' . $code, mb_substr($body, 0, 3000), 0);
+        return [$code, $body];
     }
 
     private function SetValueIfChanged(string $ident, $value): void

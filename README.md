@@ -5,14 +5,14 @@
 [![Darstellungen](https://img.shields.io/badge/Darstellungen-ab%208.0-0a6ebd.svg)](https://www.symcon.de/de/service/dokumentation/entwicklerbereich/sdk-tools/sdk-php/darstellungen/)
 [![Kachel](https://img.shields.io/badge/Kachel-HTML--SDK-22b14c.svg)](https://www.symcon.de/de/service/dokumentation/entwicklerbereich/sdk-tools/sdk-php/html-sdk/)
 [![PHP](https://img.shields.io/badge/PHP-8.0%2B-777bb4.svg)](https://www.php.net)
-[![Version](https://img.shields.io/badge/Version-2.0-green.svg)](#changelog)
+[![Version](https://img.shields.io/badge/Version-3.0-green.svg)](#changelog)
 [![Lizenz](https://img.shields.io/badge/Lizenz-MIT-lightgrey.svg)](LICENSE)
 [![Daten](https://img.shields.io/badge/Daten-Tankerk%C3%B6nig%20CC%20BY%204.0-orange.svg)](https://creativecommons.tankerkoenig.de)
 [![GitHub](https://img.shields.io/badge/GitHub-cfaf2002%2FTankstelle__Symcon-181717.svg?logo=github)](https://github.com/cfaf2002/Tankstelle_Symcon)
 
-IP-Symcon-Modul für aktuelle Spritpreise (**Super E5, Super E10, Diesel**) aller Tankstellen im Umkreis über die
-[Tankerkönig-API](https://creativecommons.tankerkoenig.de) – mit eigener Kachel, Kraftstoffwahl per Klick und
-Standort direkt aus Symcon.
+IP-Symcon-Modul für aktuelle Spritpreise aller Tankstellen im Umkreis über die
+[Tankerkönig-API](https://creativecommons.tankerkoenig.de) – mit allen Sorten, die die API liefert, Preistrend,
+Öffnungszeiten, Vergleich zum Bundesschnitt und einer modernen Kachel.
 
 ## Inhalt
 
@@ -23,26 +23,31 @@ Standort direkt aus Symcon.
 5. [Variablen](#variablen)
 6. [Kachel](#kachel)
 7. [PHP-Befehle](#php-befehle)
-8. [Geschwindigkeit](#geschwindigkeit)
-9. [Sicherheit](#sicherheit)
-10. [Lizenzen und Quellen](#lizenzen-und-quellen)
-11. [Changelog](#changelog)
+8. [Was die Tankerkönig-API kann](#was-die-tankerkönig-api-kann)
+9. [Geschwindigkeit](#geschwindigkeit)
+10. [Sicherheit](#sicherheit)
+11. [Lizenzen und Quellen](#lizenzen-und-quellen)
+12. [Changelog](#changelog)
 
 ## Funktionen
 
-- **Alle Kraftstoffe per Klick:** E5, E10 und Diesel einzeln an- und abwählbar; Umschalten in Kachel oder Variable
-- **Eine Abfrage für alles:** alle Kraftstoffe kommen mit einem einzigen API-Aufruf – Umschalten ohne Wartezeit
+- **Alle Sorten der API:** Super E5, Super E10, Diesel sowie Super Plus, Autogas (LPG) und Erdgas (CNG), sobald Tankerkönig sie liefert – per Haken an-/abwählbar, Umschalten per Klick in Kachel oder Variable
+- **Eine Abfrage für alles:** alle Sorten kommen mit einem einzigen API-Aufruf (API v4, Rückfall auf v1) – Umschalten ohne Wartezeit
+- **Preistrend:** letzte Preisänderung je Tankstelle (↑/↓ in Cent)
+- **Öffnungszeiten:** „bis 22:00“ bzw. „öffnet 06:00“ direkt in Kachel und Liste
+- **Bundesdurchschnitt:** Vergleich mit dem deutschlandweiten Ø-Preis, Ersparnis in Cent als Variable
 - **Standort aus Symcon** (Location Control), alternativ per Karte oder Postleitzahl
 - **Aktiv-Schalter** zum Pausieren ohne Löschen
 - **Bestpreis je Kraftstoff** als eigene Variable – ideal fürs Archiv und für Preisverläufe
 - Günstigste Tankstelle mit Adresse und Entfernung, Ø- und Höchstpreis, Anzahl Stationen
-- **Kachel nach Symcon-Kachelschema** (HTML-SDK) mit Symcon-Icons, passt sich der Kachelgröße an
+- **Moderne Kachel** im Stil der Symcon-Kacheln (HTML-SDK): Segment-Schalter, Preis in Tankstellen-Optik, Preisspanne, Markenkürzel, passt sich Größe und Hell/Dunkel an
 - **Darstellungen** (Symcon 8.0+/9.0) statt Variablenprofile – automatischer Rückfall auf Profile bei älteren Versionen
 - Optionale HTML-Variable (Webinhalt) für WebFront und ältere Visualisierungen
 - Optionaler **Preisalarm** mit einstellbarer Schwelle
 
-> Die Markttransparenzstelle für Kraftstoffe meldet nur **Super E5, Super E10 und Diesel**. Super Plus, LPG oder AdBlue
-> sind dort nicht enthalten und können daher nicht angezeigt werden.
+> Die Markttransparenzstelle für Kraftstoffe meldet derzeit **Super E5, Super E10 und Diesel**. Die API v4 sieht
+> zusätzlich LPG und CNG vor. Das Modul übernimmt weitere Sorten automatisch, sobald Tankerkönig sie liefert –
+> welche Sorten zuletzt geliefert wurden, steht im Konfigurationsformular. AdBlue wird von keiner Quelle gemeldet.
 
 ## Voraussetzungen
 
@@ -67,11 +72,12 @@ Danach eine neue Instanz **Tankstellen** anlegen.
 | Tankerkönig API-Key | Persönlicher Schlüssel (verdeckte Eingabe) |
 | Standortquelle | **Symcon-Standort** (Standard): aus Kern-Instanzen → Location Control, Änderungen dort greifen automatisch<br>**Eigener Standort**: Punkt auf der Karte wählen<br>**Postleitzahl**: Koordinaten über OpenStreetMap, Ergebnis wird zwischengespeichert |
 | Suchradius | 1–25 km (Grenze der API) |
-| Kraftstoffe | Super E5, Super E10, Diesel per Haken an-/abwählen |
+| Kraftstoffe | Super E5, Super E10, Diesel, Super Plus, LPG, CNG per Haken an-/abwählen |
 | Aktualisierungsintervall | Mindestens 5 Minuten (Vorgabe von Tankerkönig) |
 | Sortierung der Liste | Nach Preis oder Entfernung |
 | Nur geöffnete Tankstellen | Geschlossene Stationen ausblenden |
 | Max. Einträge | Begrenzung für Liste in Kachel und HTML-Variable (0 = alle) |
+| Bundesdurchschnitt | Deutschlandweiten Ø-Preis abrufen (alle 6 Stunden, zeitversetzt) |
 | HTML-Variable | Zuschaltbar, für die Kachel nicht nötig |
 | Detailvariablen | Adresse, Entfernung, Ø-Preis, Höchstpreis, Anzahl |
 | Preisalarm + Schwelle | Für den gewählten Kraftstoff, Schwelle in € |
@@ -83,27 +89,31 @@ Danach eine neue Instanz **Tankstellen** anlegen.
 | FuelType | Kraftstoff | Integer (Aktion) | Aufzählung, nebeneinander zum Antippen |
 | CheapestPrice | Günstigster Preis | Float | Wertanzeige, 3 Nachkommastellen, € |
 | CheapestName | Günstigste Tankstelle | String | Wertanzeige |
-| Price_e5 / Price_e10 / Price_diesel | Bestpreis je Kraftstoff | Float | Wertanzeige, € |
+| Price_e5 / _e10 / _diesel / _superplus / _lpg / _cng | Bestpreis je aktivierter Sorte | Float | Wertanzeige, € |
 | CheapestAddress | Adresse *(Detail)* | String | Wertanzeige |
 | CheapestDistance | Entfernung *(Detail)* | Float | Wertanzeige, km |
 | AveragePrice | Durchschnittspreis *(Detail)* | Float | Wertanzeige, € |
 | HighestPrice | Höchster Preis *(Detail)* | Float | Wertanzeige, € |
 | StationCount | Anzahl Tankstellen *(Detail)* | Integer | Wertanzeige |
+| NationalAverage | Bundesdurchschnitt *(optional)* | Float | Wertanzeige, € |
+| SavingVsNational | Ersparnis zum Bundesschnitt *(optional)* | Float | Wertanzeige, ct |
 | HTML | Übersicht *(optional)* | String | Webinhalt |
 | PriceAlert | Preis unter Schwelle *(optional)* | Boolean | Wertanzeige |
 | LastUpdate | Letzte Aktualisierung | Integer | Datum/Uhrzeit |
 
-Unter Symcon 7.x werden statt Darstellungen die Profile `TANK.FuelType`, `TANK.Price`, `TANK.Distance` angelegt.
+Unter Symcon 7.x werden statt Darstellungen die Profile `TANK.FuelType`, `TANK.Price`, `TANK.Distance`, `TANK.Cent` angelegt.
 
 ## Kachel
 
 Die Instanz bringt eine eigene Kachel mit (HTML-SDK). Einfach die Instanz in der Kachel-Visualisierung hinzufügen.
 
-- Oben: Knöpfe für jeden aktivierten Kraftstoff mit aktuellem Bestpreis – ein Klick schaltet **sofort** um
-- Günstigste Tankstelle groß, darunter Ø-Preis, Höchstpreis und Anzahl
-- Scrollbare Liste aller Tankstellen, geschlossene ausgegraut
-- Passt sich automatisch an: kleine Kacheln zeigen nur Kraftstoff-Knöpfe und Bestpreis
-- Transparenter Hintergrund, Schrift und Farben aus dem Symcon-Theme (hell/dunkel)
+- **Segment-Schalter** für alle aktivierten Sorten mit aktuellem Bestpreis – ein Klick schaltet sofort um
+- **Bestpreis groß** in Tankstellen-Optik (2,10⁹ €) mit Preistrend der letzten Änderung
+- Tankstelle mit Adresse, Entfernung und Öffnungszeit
+- **Preisspanne:** Balken von günstigster bis teuerster Station, Markierung für Ø hier und Ø Deutschland
+- Liste aller Stationen mit Markenkürzel, Trendpfeil und Öffnungszeit; geschlossene ausgegraut
+- **Passt sich an:** breit zweispaltig, hoch mit Liste, mittel ohne Liste, klein nur Preis
+- Übernimmt Schrift sowie Hell/Dunkel der Symcon-Visualisierung; lässt Platz für Kacheltitel und Vollbild-Symbol
 
 ## PHP-Befehle
 
@@ -111,16 +121,39 @@ Die Instanz bringt eine eigene Kachel mit (HTML-SDK). Einfach die Instanz in der
 // Preise sofort abrufen (true/false)
 TANK_Update(int $InstanzID);
 
-// Stationsliste eines Kraftstoffs ("e5", "e10", "diesel" oder leer = gewählter)
-$stations = TANK_GetStations(int $InstanzID, string $Kraftstoff);
+// Stationsliste einer Sorte ("e5", "e10", "diesel", "superplus", "lpg", "cng" oder leer = gewählte)
+$stations = TANK_GetStations(int $InstanzID, string $Sorte);
 
-// Kraftstoff umschalten (0 = E5, 1 = E10, 2 = Diesel)
+// Bundesdurchschnitt sofort abrufen (sonst automatisch alle 6 Stunden)
+TANK_UpdateStats(int $InstanzID);
+
+// Falsche Daten an die Markttransparenzstelle melden
+// Typen: wrongPriceE5, wrongPriceE10, wrongPriceDiesel, wrongStatusOpen, wrongStatusClosed,
+//        wrongPetrolStationName/Brand/Street/HouseNumber/Postcode/Place/Location
+TANK_ReportError(int $InstanzID, string $StationsID, string $Typ, string $Korrektur);
+
+// Sorte umschalten (0 = E5, 1 = E10, 2 = Diesel, 3 = Super Plus, 4 = LPG, 5 = CNG)
 RequestAction(IPS_GetObjectIDByIdent('FuelType', $InstanzID), 2);
 ```
 
+## Was die Tankerkönig-API kann
+
+| Funktion | Endpunkt | Im Modul |
+|---|---|---|
+| Umkreissuche mit allen Sorten, Öffnungszeiten und letzter Preisänderung | v4 `/stations/search` | ✔ Hauptabruf |
+| Umkreissuche E5/E10/Diesel | v1 `list.php` | ✔ automatischer Rückfall, falls v4 ausfällt |
+| Bundesweite Statistik (Ø, Median, Anzahl je Sorte) | v4 `/stats` | ✔ alle 6 Stunden, Vergleich in Kachel und Variable |
+| Falsche Preise, Öffnungsstatus oder Stammdaten melden | v1 `complaint.php` | ✔ `TANK_ReportError` |
+| Preise bestimmter Stationen per ID | v4 `/stations/ids`, v1 `prices.php` | – nicht nötig, die Umkreissuche enthält alle Stationen |
+| Stationen einer Postleitzahl | v4 `/stations/postalcode` | – Umkreissuche ist genauer |
+| Stationsdetails mit Öffnungszeiten | v1 `detail.php` | – in v4 bereits in der Umkreissuche enthalten |
+
+**Nutzungsregeln von Tankerkönig**, die das Modul einhält: höchstens eine Anfrage pro Minute je API-Key,
+für Hausautomation höchstens alle 5 Minuten mit zufälligem Zeitversatz, Umkreis bis 25 km, Quellenangabe.
+
 ## Geschwindigkeit
 
-- **Ein API-Aufruf** liefert E5, E10 und Diesel gleichzeitig (`type=all`), statt einem Aufruf pro Kraftstoff
+- **Ein API-Aufruf** liefert alle Sorten gleichzeitig, statt einem Aufruf pro Sorte
 - Kraftstoffwechsel rechnet aus dem Zwischenspeicher – **kein** neuer Abruf, in der Kachel ohne Server-Rundreise
 - Variablen werden nur geschrieben, wenn sich der Wert ändert (weniger Ereignisse, kleineres Archiv)
 - Komprimierte Übertragung (gzip), kurze Timeouts, PLZ-Koordinaten werden zwischengespeichert
@@ -132,7 +165,8 @@ RequestAction(IPS_GetObjectIDByIdent('FuelType', $InstanzID), 2);
 - Nur HTTPS mit Zertifikatsprüfung, keine Weiterleitungen, Antwortgröße begrenzt
 - Alle Texte aus der API werden vor der Ausgabe escaped; die Kachel baut ihre Inhalte per DOM, nicht per HTML-String
 - Aktionen aus der Kachel werden geprüft: nur bekannte Aktionen, nur aktivierte Kraftstoffe
-- Schutz vor Klick-Serien: manuelles Aktualisieren höchstens einmal pro Minute
+- Ratenlimit: höchstens eine Anfrage pro Minute für alle Abrufe zusammen (Preise, Statistik, Meldungen)
+- Meldungen an die MTS-K nur mit geprüfter Stations-ID und festgelegten Meldungstypen
 - Sperre gegen parallele Abfragen (Timer, Button und Kachel gleichzeitig)
 - Kachel-Kommunikation läuft über das passwortgeschützte HTML-SDK der Visualisierung
 
@@ -148,6 +182,14 @@ RequestAction(IPS_GetObjectIDByIdent('FuelType', $InstanzID), 2);
 Bitte den eigenen API-Key **nicht** im Repository oder in Foren veröffentlichen.
 
 ## Changelog
+
+### 3.0
+- API v4: alle Sorten, die Tankerkönig liefert (inkl. Super Plus, LPG, CNG), Preistrend, Öffnungszeiten
+- Automatischer Rückfall auf API v1
+- Bundesdurchschnitt mit Ersparnis-Variable
+- Meldefunktion für falsche Daten (`TANK_ReportError`)
+- Kachel neu gestaltet: Segment-Schalter, Preistafel-Optik, Preisspanne, Markenkürzel, breite Ansicht
+- Ratenlimit und zufälliger Zeitversatz nach Tankerkönig-Vorgaben
 
 ### 2.0
 - Alle Kraftstoffe per Klick an-/abwählbar, Umschalten in Kachel ohne Wartezeit

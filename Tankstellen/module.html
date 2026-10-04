@@ -6,178 +6,306 @@
 <!-- Symcon-Icons (Font Awesome) aus der Visualisierung -->
 <script src="/icons.js" crossorigin="anonymous"></script>
 <style>
-    /* Tankstellen-Kachel · MIT © 2026 Armin Frohwerk · Daten: Tankerkönig/MTS-K CC BY 4.0 */
+    /* Tankstellen-Kachel · MIT © 2026 Armin Frohwerk · Daten: Tankerkönig/MTS-K, CC BY 4.0 */
     :root {
-        --tk-accent: #22b14c;
-        --tk-accent-soft: rgba(34, 177, 76, .14);
-        --tk-muted: rgba(127, 127, 127, .95);
-        --tk-line: rgba(127, 127, 127, .2);
-        --tk-chip: rgba(127, 127, 127, .14);
-        --tk-error: #e5484d;
+        --text: #ffffff;
+        --font: "Poppins", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+        --cheap: #2fbf5b;
+        --dear: #e5484d;
+        --muted: color-mix(in srgb, var(--text) 58%, transparent);
+        --faint: color-mix(in srgb, var(--text) 10%, transparent);
+        --line: color-mix(in srgb, var(--text) 9%, transparent);
+        --top: 52px;        /* Platz für Titel und Vollbild-Symbol der Symcon-Kachel */
     }
     * { box-sizing: border-box; }
-    /* Kachelschema: transparenter Hintergrund, Schrift und Farbe kommen aus der Visualisierung */
-    html, body { margin: 0; height: 100%; background: transparent; color: inherit; font-family: inherit; -webkit-font-smoothing: antialiased; }
-    body { container-type: size; overflow: hidden; }
-    .wrap { height: 100%; display: flex; flex-direction: column; gap: 8px; }
+    html, body { margin: 0; height: 100%; background: transparent; color: var(--text); font-family: var(--font); -webkit-font-smoothing: antialiased; }
+    body { container-type: size; overflow: hidden; font-size: 13px; }
+    button { font: inherit; color: inherit; }
+    .num { font-variant-numeric: tabular-nums; }
 
-    .fuels { display: flex; gap: 6px; }
-    .fuel {
-        flex: 1; min-width: 0; border: 0; cursor: pointer; font: inherit; color: inherit;
-        background: var(--tk-chip); border-radius: 10px; padding: 6px 4px; text-align: center;
-        transition: background .15s, transform .1s; -webkit-tap-highlight-color: transparent;
-    }
-    .fuel:active { transform: scale(.97); }
-    .fuel .k { font-size: 12px; font-weight: 700; letter-spacing: .3px; }
-    .fuel .v { font-size: 11px; color: var(--tk-muted); white-space: nowrap; }
-    .fuel.on { background: var(--tk-accent); color: #fff; }
-    .fuel.on .v { color: rgba(255, 255, 255, .85); }
-    .icon-btn { border: 0; background: var(--tk-chip); color: inherit; border-radius: 10px; width: 36px; cursor: pointer; font-size: 14px; flex: 0 0 auto; }
-    .icon-btn.spin i { animation: spin .8s linear infinite; }
+    .tile { height: 100%; padding-top: var(--top); display: grid; grid-template-rows: auto auto 1fr auto; gap: 14px; }
+
+    /* Kraftstoffwahl: ein Segment-Schalter wie bei Symcon-Aufzählungen */
+    .seg { position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--faint); border-radius: 999px; padding: 3px; }
+    .seg .knob { position: absolute; top: 3px; bottom: 3px; left: 3px; border-radius: 999px; background: var(--cheap); transition: transform .25s cubic-bezier(.3, .7, .2, 1), width .25s; }
+    .seg button { position: relative; border: 0; background: none; cursor: pointer; padding: 6px 4px; border-radius: 999px; line-height: 1.2; -webkit-tap-highlight-color: transparent; }
+    .seg button:focus-visible { outline: 2px solid var(--cheap); outline-offset: 2px; }
+    .seg .k { display: block; font-weight: 600; font-size: 12px; }
+    .seg .v { display: block; font-size: 11px; color: var(--muted); }
+    .seg button[aria-pressed="true"] { color: #fff; }
+    .seg button[aria-pressed="true"] .v { color: rgba(255, 255, 255, .8); }
+
+    /* Hauptbereich: der Preis wie auf der Preistafel */
+    .main { min-width: 0; display: grid; gap: 10px; align-content: start; }
+    .price { font-size: 52px; font-weight: 600; line-height: .95; letter-spacing: -1px; white-space: nowrap; }
+    .price sup { font-size: .5em; color: var(--cheap); margin-left: 1px; vertical-align: .82em; letter-spacing: 0; }
+    .price .eur { font-size: .42em; font-weight: 500; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
+    .head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+    .trend { font-size: 12px; font-weight: 600; white-space: nowrap; padding-bottom: 6px; }
+    .trend.down { color: var(--cheap); } .trend.up { color: var(--dear); }
+    .who .name { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .who .meta { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .badge { justify-self: start; font-size: 11px; font-weight: 600; padding: 2px 10px; border-radius: 999px; background: color-mix(in srgb, var(--cheap) 22%, transparent); color: var(--cheap); }
+
+    /* Preisspanne der Umgebung mit Ø und Bundesschnitt */
+    .range { display: grid; gap: 6px; }
+    .bar { position: relative; height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--cheap), color-mix(in srgb, var(--cheap) 40%, var(--dear)) 60%, var(--dear)); opacity: .9; }
+    .bar .mark { position: absolute; top: 50%; width: 2px; height: 14px; transform: translate(-1px, -50%); background: var(--text); border-radius: 1px; }
+    .bar .mark.de { background: none; border-left: 2px dotted var(--text); width: 0; }
+    .bar .dot { position: absolute; top: 50%; width: 12px; height: 12px; transform: translate(-6px, -50%); border-radius: 50%; background: var(--cheap); box-shadow: 0 0 0 3px color-mix(in srgb, var(--text) 85%, transparent); }
+    .legend { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 11px; }
+    .legend b, .legend .b { color: var(--text); font-weight: 600; }
+    .legend sup, .seg .v sup { font-size: .75em; vertical-align: .35em; }
+
+    /* Liste */
+    .list { min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--faint) transparent; margin-right: -4px; padding-right: 4px; }
+    .list::-webkit-scrollbar { width: 6px; } .list::-webkit-scrollbar-thumb { background: var(--faint); border-radius: 3px; }
+    .row { display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+    .row:first-child { border-top: 0; }
+    .logo { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 700; color: #fff; letter-spacing: .2px; }
+    .row .n { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .row .s { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .row .p { font-size: 15px; font-weight: 600; text-align: right; white-space: nowrap; }
+    .row .p sup { font-size: .6em; vertical-align: .55em; }
+    .row .d { font-size: 11px; text-align: right; color: var(--muted); white-space: nowrap; }
+    .row.best .p { color: var(--cheap); }
+    .row.closed { opacity: .45; }
+    .row .d .up { color: var(--dear); } .row .d .down { color: var(--cheap); }
+
+    .msg { padding: 10px 12px; border-radius: 12px; background: var(--faint); }
+    .msg.err { background: color-mix(in srgb, var(--dear) 16%, transparent); color: var(--dear); }
+
+    .foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); }
+    .refresh { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 2px 0; cursor: pointer; color: var(--muted); }
+    .refresh:hover { color: var(--text); }
+    .refresh.spin i { animation: spin .8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    .hero { border-radius: 14px; padding: 10px 12px; background: var(--tk-accent-soft); border: 1px solid rgba(34, 177, 76, .3); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-    .hero .info { min-width: 0; }
-    .hero .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--tk-muted); }
-    .hero .name { font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .hero .addr { font-size: 12px; color: var(--tk-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .hero .price { font-size: 32px; font-weight: 800; line-height: 1; color: var(--tk-accent); white-space: nowrap; }
-    sup { font-size: .55em; vertical-align: .75em; margin-left: 1px; }
-    .badge { display: inline-block; margin-top: 4px; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: var(--tk-accent); color: #fff; }
+    /* Breite Kachel: Preis links, Liste rechts */
+    @container (min-width: 560px) and (min-height: 300px) {
+        .tile { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); grid-template-rows: auto 1fr auto; column-gap: 24px; }
+        .seg, .foot { grid-column: 1 / -1; }
+        .list { grid-row: 2; grid-column: 2; }
+        .price { font-size: 60px; }
+    }
+    /* Mittlere Höhe: ohne Liste */
+    @container (max-height: 330px) { .list { display: none; } }
+    @container (max-height: 330px) and (min-width: 560px) { .tile { grid-template-columns: 1fr; } }
+    /* Klein: nur Auswahl, Preis und Tankstelle */
+    @container (max-height: 240px) {
+        .tile { padding-top: 40px; }
+        .range, .foot, .who .meta, .badge { display: none; }
+        .tile { gap: 10px; }
+        .price { font-size: 40px; }
+    }
+    @container (max-height: 170px) { .seg .v, .trend { display: none; } .price { font-size: 32px; } }
+    @container (max-width: 280px) { .price { font-size: 40px; } }
 
-    .stats { display: flex; gap: 6px; }
-    .stat { flex: 1; background: var(--tk-chip); border-radius: 10px; padding: 5px 8px; min-width: 0; }
-    .stat .v { font-size: 14px; font-weight: 700; white-space: nowrap; }
-    .stat .l { font-size: 10px; color: var(--tk-muted); text-transform: uppercase; letter-spacing: .4px; }
-
-    .list { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
-    .item { display: grid; grid-template-columns: 20px 1fr auto; gap: 8px; align-items: center; padding: 6px 0; border-top: 1px solid var(--tk-line); }
-    .item:first-child { border-top: 0; }
-    .item .rk { font-size: 12px; font-weight: 700; color: var(--tk-muted); text-align: center; }
-    .item .n { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .item .s { font-size: 11px; color: var(--tk-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .item .p { font-size: 15px; font-weight: 700; text-align: right; white-space: nowrap; }
-    .item .d { font-size: 11px; color: var(--tk-muted); text-align: right; }
-    .item.best .p { color: var(--tk-accent); }
-    .item.closed { opacity: .45; }
-
-    .msg { padding: 8px 10px; border-radius: 10px; font-size: 13px; background: var(--tk-chip); }
-    .msg.err { background: rgba(229, 72, 77, .14); color: var(--tk-error); }
-    .foot { font-size: 10px; color: var(--tk-muted); display: flex; justify-content: space-between; gap: 6px; }
-
-    /* Kleine Kacheln: nur das Wesentliche */
-    @container (max-height: 300px) { .list { display: none; } }
-    @container (max-height: 220px) { .stats, .foot { display: none; } }
-    @container (max-height: 150px) { .hero .addr, .fuel .v { display: none; } .hero .price { font-size: 26px; } }
-    @container (max-width: 260px) { .hero { flex-direction: column; align-items: flex-start; } .icon-btn { display: none; } }
+    @media (prefers-reduced-motion: reduce) { .seg .knob { transition: none; } .refresh.spin i { animation: none; } }
 </style>
 </head>
 <body>
-<div class="wrap">
-    <div class="fuels" id="fuels"></div>
-    <div id="content"></div>
+<div class="tile">
+    <div class="seg" id="seg" role="group" aria-label="Kraftstoff"><div class="knob" id="knob"></div></div>
+    <div class="main" id="main"></div>
     <div class="list" id="list"></div>
-    <div class="foot"><span id="updated"></span><span>Tankerkönig · CC BY 4.0</span></div>
+    <div class="foot">
+        <button class="refresh" id="refresh" type="button" title="Jetzt aktualisieren"><i class="fa-light fa-arrows-rotate"></i><span id="updated"></span></button>
+        <span>Daten: Tankerkönig (CC BY 4.0)</span>
+    </div>
 </div>
 
 <script>
     let state = null;
     let selected = null;
-
     const $ = (id) => document.getElementById(id);
     const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 
-    // Preis in Tankstellen-Optik: 1,75⁹ € – als DOM, nicht als HTML-String
-    function priceNode(p, cls) {
-        const span = el('span', cls);
+    // Preis in Tankstellen-Optik: 1,68⁹ €
+    function priceNode(p, cls, euro = true) {
+        const span = el('span', (cls || '') + ' num');
         if (p === null || p === undefined || isNaN(p)) { span.textContent = '–'; return span; }
         const s = Number(p).toFixed(3);
-        span.append(s.slice(0, -1).replace('.', ','), el('sup', '', s.slice(-1)), ' €');
+        span.append(s.slice(0, -1).replace('.', ','), el('sup', '', s.slice(-1)));
+        if (euro) span.append(el('span', 'eur', '€'));
         return span;
     }
+    const plain = (p) => Number(p).toFixed(3).replace('.', ',');
     const km = (d) => Number(d).toFixed(1).replace('.', ',') + ' km';
+    const clock = (ts) => new Date(ts * 1000).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    function ago(ts) {
+        const m = Math.max(0, Math.round((Date.now() / 1000 - ts) / 60));
+        if (m < 1) return 'gerade eben';
+        if (m < 60) return 'vor ' + m + ' Min.';
+        const h = Math.round(m / 60);
+        return h < 24 ? 'vor ' + h + ' Std.' : 'am ' + new Date(ts * 1000).toLocaleDateString('de-DE');
+    }
+    function cents(a) { return (a > 0 ? '+' : '−') + Math.abs(Math.round(a * 100)) + ' ct'; }
 
-    function renderFuels() {
-        const box = $('fuels');
-        box.replaceChildren();
-        (state.fuels || []).forEach((f) => {
-            const b = el('button', 'fuel' + (f.index === selected ? ' on' : ''));
+    // Öffnungsstatus aus API v4 (opensAt/closesAt)
+    function openText(s) {
+        if (!s.isOpen) return s.opensAt ? 'öffnet ' + clock(s.opensAt) : 'geschlossen';
+        if (s.closesAt && s.closesAt - Date.now() / 1000 < 86400) return 'bis ' + clock(s.closesAt);
+        return '';
+    }
+
+    // Kreis mit Markenkürzel, Farbe stabil aus dem Namen abgeleitet
+    const PALETTE = ['#2f6fdf', '#d9534f', '#e0a800', '#2a9d8f', '#7b5cd6', '#e76f51', '#3a86a8', '#8d6e63', '#c2185b', '#5c7cfa'];
+    function logo(name) {
+        const clean = (name || '?').replace(/[^A-Za-zÄÖÜäöü0-9 ]/g, '').trim();
+        const parts = clean.split(/\s+/);
+        const text = (parts.length > 1 ? parts[0][0] + parts[1][0] : clean.slice(0, 2)).toUpperCase() || '?';
+        let h = 0; for (const c of clean.toLowerCase()) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+        const d = el('div', 'logo', text);
+        d.style.background = PALETTE[h % PALETTE.length];
+        return d;
+    }
+
+    function renderSeg() {
+        const seg = $('seg');
+        seg.querySelectorAll('button').forEach((b) => b.remove());
+        const fuels = state.fuels || [];
+        fuels.forEach((f) => {
+            const b = el('button');
             b.type = 'button';
-            b.append(el('div', 'k', f.short));
-            const v = el('div', 'v'); v.append(priceNode(f.min)); b.append(v);
+            b.setAttribute('aria-pressed', String(f.index === selected));
+            b.append(el('span', 'k', f.short));
+            const v = priceNode(f.min, 'v', false);
+            b.append(v);
             b.addEventListener('click', () => {
                 if (f.index === selected) return;
-                selected = f.index;     // sofort lokal umschalten – keine Wartezeit
+                selected = f.index;            // sofort lokal umschalten
                 render();
-                requestAction('FuelType', f.index); // Auswahl im Modul speichern
+                requestAction('FuelType', f.index);
             });
-            box.append(b);
+            seg.append(b);
         });
-        const r = el('button', 'icon-btn');
-        r.type = 'button'; r.title = 'Aktualisieren'; r.id = 'refresh';
-        const icon = el('i', 'fa-light fa-arrows-rotate');
-        r.append(icon);
-        // Rückfall, falls die Symcon-Icons nicht geladen sind
-        requestAnimationFrame(() => {
-            const c = getComputedStyle(icon, '::before').content;
-            if (!c || c === 'none' || c === 'normal' || c === '""') icon.textContent = '⟳';
+        const pos = Math.max(0, fuels.findIndex((f) => f.index === selected));
+        const knob = $('knob');
+        knob.style.display = fuels.length ? '' : 'none';
+        knob.style.width = 'calc((100% - 6px) / ' + Math.max(1, fuels.length) + ')';
+        knob.style.transform = 'translateX(' + (pos * 100) + '%)';
+    }
+
+    function renderMain(f) {
+        const main = $('main');
+        main.replaceChildren();
+        if (state.error) main.append(el('div', 'msg err', state.error));
+        const c = f && f.cheapest;
+        if (!c) {
+            if (!state.error) main.append(el('div', 'msg', state.updated ? 'Im Umkreis von ' + state.radius + ' km gibt es gerade keinen Preis für ' + (f ? f.label : 'diese Sorte') + '.' : 'Preise werden geladen …'));
+            return;
+        }
+
+        const head = el('div', 'head');
+        head.append(priceNode(c.price, 'price'));
+        if (c.change !== null && c.change !== undefined && c.change !== 0) {
+            const t = el('div', 'trend ' + (c.change < 0 ? 'down' : 'up'), (c.change < 0 ? '↓ ' : '↑ ') + cents(c.change));
+            if (c.changed) t.title = 'Letzte Änderung ' + ago(c.changed);
+            head.append(t);
+        }
+        main.append(head);
+
+        const who = el('div', 'who');
+        const meta = [c.address, km(c.distance), openText(c)].filter(Boolean).join(', ');
+        who.append(el('div', 'name', c.name), el('div', 'meta', meta));
+        main.append(who);
+
+        if (state.threshold !== null && state.threshold !== undefined && c.price <= state.threshold) {
+            main.append(el('div', 'badge', 'Unter deiner Schwelle von ' + plain(state.threshold) + ' €'));
+        }
+
+        // Preisspanne: wo liegt der Bestpreis im Vergleich?
+        if (f.max > f.min) {
+            const lo = Math.min(f.min, f.national ?? f.min), hi = Math.max(f.max, f.national ?? f.max);
+            const pct = (v) => ((v - lo) / (hi - lo) * 100).toFixed(1) + '%';
+            const range = el('div', 'range');
+            const bar = el('div', 'bar');
+            const avg = el('div', 'mark'); avg.style.left = pct(f.avg); avg.title = 'Ø hier ' + plain(f.avg) + ' €';
+            bar.append(avg);
+            if (f.national) { const de = el('div', 'mark de'); de.style.left = pct(f.national); de.title = 'Ø Deutschland ' + plain(f.national) + ' €'; bar.append(de); }
+            const dot = el('div', 'dot'); dot.style.left = pct(c.price); bar.append(dot);
+            const legend = el('div', 'legend');
+            const left = el('span'); left.append(f.count + ' Stationen, ', priceNode(f.min, 'b', false), ' bis ', priceNode(f.max, 'b', false), ' €');
+            const right = el('span');
+            if (f.national) {
+                const diff = Math.round((f.national - c.price) * 100);
+                right.append(el('b', 'num', Math.abs(diff) + ' ct'), diff >= 0 ? ' unter Bundesschnitt' : ' über Bundesschnitt');
+            } else {
+                right.append('Ø hier ', priceNode(f.avg, 'b', false), ' €');
+            }
+            legend.append(left, right);
+            range.append(bar, legend);
+            main.append(range);
+        }
+    }
+
+    function renderList(f) {
+        const list = $('list');
+        list.replaceChildren();
+        if (!f || !f.cheapest) return;
+        (f.stations || []).forEach((s) => {
+            const row = el('div', 'row' + (s.id === f.cheapest.id ? ' best' : '') + (s.isOpen ? '' : ' closed'));
+            const mid = el('div'); mid.style.minWidth = '0';
+            mid.append(el('div', 'n', s.name), el('div', 's', [s.address, openText(s)].filter(Boolean).join(', ')));
+            const right = el('div');
+            right.append(priceNode(s.price, 'p', false));
+            right.firstChild.style.display = 'block';
+            const d = el('div', 'd');
+            if (s.change) d.append(el('span', s.change < 0 ? 'down' : 'up', (s.change < 0 ? '↓' : '↑') + ' '));
+            d.append(km(s.distance));
+            right.append(d);
+            row.append(logo(s.brand || s.name), mid, right);
+            list.append(row);
         });
-        r.addEventListener('click', () => { r.classList.add('spin'); requestAction('Refresh', true); });
-        box.append(r);
     }
 
     function render() {
         if (!state) return;
-        renderFuels();
-        const content = $('content');
-        const list = $('list');
-        content.replaceChildren();
-        list.replaceChildren();
-
-        if (state.error) content.append(el('div', 'msg err', state.error));
-
+        renderSeg();
         const f = (state.fuels || []).find((x) => x.index === selected);
-        const c = f && f.cheapest;
-        if (c) {
-            const hero = el('div', 'hero');
-            const info = el('div', 'info');
-            info.append(el('div', 'lbl', 'Günstigste · ' + f.label + ' · ' + state.radius + ' km'),
-                el('div', 'name', c.name), el('div', 'addr', c.address + ' · ' + km(c.distance)));
-            if (state.threshold !== null && state.threshold !== undefined && c.price <= state.threshold) {
-                const b = el('span', 'badge'); b.append('unter ', priceNode(state.threshold)); info.append(b);
-            }
-            hero.append(info, priceNode(c.price, 'price'));
-            content.append(hero);
-
-            const stats = el('div', 'stats');
-            [['Ø Preis', priceNode(f.avg)], ['Teuerste', priceNode(f.max)], ['Stationen', document.createTextNode(String(f.count))]].forEach(([l, v]) => {
-                const s = el('div', 'stat'); const val = el('div', 'v'); val.append(v); s.append(val, el('div', 'l', l)); stats.append(s);
-            });
-            content.append(stats);
-
-            (f.stations || []).forEach((s, i) => {
-                const row = el('div', 'item' + (s.id === c.id ? ' best' : '') + (s.isOpen ? '' : ' closed'));
-                const mid = el('div'); mid.style.minWidth = '0';
-                mid.append(el('div', 'n', s.name), el('div', 's', s.address));
-                const right = el('div'); right.append(priceNode(s.price, 'p'), el('div', 'd', km(s.distance)));
-                right.firstChild.style.display = 'block';
-                row.append(el('div', 'rk', String(i + 1)), mid, right);
-                list.append(row);
-            });
-        } else if (!state.error) {
-            content.append(el('div', 'msg', state.updated ? 'Keine passenden Tankstellen gefunden.' : 'Noch keine Daten …'));
-        }
-
-        $('updated').textContent = state.updated
-            ? 'Stand ' + new Date(state.updated * 1000).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
-            : '';
+        renderMain(f);
+        renderList(f);
+        $('updated').textContent = state.updated ? 'Stand ' + clock(state.updated) : 'Aktualisieren';
     }
 
-    // Wird von Symcon bei jeder Aktualisierung aufgerufen (String) bzw. initial (Objekt)
+    // Aktualisieren (höchstens 1x pro Minute, das prüft das Modul)
+    (function initRefresh() {
+        const r = $('refresh');
+        const icon = r.querySelector('i');
+        r.addEventListener('click', () => { r.classList.add('spin'); requestAction('Refresh', true); });
+        requestAnimationFrame(() => {
+            const c = getComputedStyle(icon, '::before').content;
+            if (!c || c === 'none' || c === 'normal' || c === '""') icon.textContent = '⟳';
+        });
+    })();
+
+    // Hell/Dunkel und Schrift der Symcon-Visualisierung übernehmen
+    (function adoptTheme() {
+        const root = document.documentElement.style;
+        const rgb = (c) => (c.match(/[\d.]+/g) || []).map(Number);
+        try {
+            let node = window.frameElement;
+            if (!node) return;
+            const font = getComputedStyle(node.parentElement || node).fontFamily;
+            if (font && !/^\s*("?Times|serif)/i.test(font)) root.setProperty('--font', font + ', "Segoe UI", system-ui, sans-serif');
+            while (node && node.nodeType === 1) {
+                const v = rgb(getComputedStyle(node).backgroundColor);
+                if (v.length >= 3 && (v.length < 4 || v[3] > 0.5)) {
+                    root.setProperty('--text', (0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]) / 255 < 0.5 ? '#ffffff' : '#1c1c1e');
+                    return;
+                }
+                node = node.parentElement;
+            }
+        } catch (e) { /* andere Herkunft – Vorgaben bleiben */ }
+    })();
+
+    // Von Symcon aufgerufen: initial mit Objekt, danach mit JSON-String
     function handleMessage(data) {
         try { state = typeof data === 'string' ? JSON.parse(data) : data; } catch (e) { return; }
         if (!state) return;
         selected = state.selected;
+        $('refresh').classList.remove('spin');
         render();
     }
 </script>

@@ -91,7 +91,7 @@
             "items": [
                 {
                     "type": "Label",
-                    "caption": "Welche Kraftstoffe sollen angezeigt werden? Alle werden mit einer einzigen Abfrage geholt."
+                    "caption": "Alle Sorten kommen mit einer einzigen Abfrage. Per Haken festlegen, welche angezeigt werden."
                 },
                 {
                     "type": "RowLayout",
@@ -112,6 +112,35 @@
                             "caption": "Diesel"
                         }
                     ]
+                },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        {
+                            "type": "CheckBox",
+                            "name": "FuelSuperPlus",
+                            "caption": "Super Plus"
+                        },
+                        {
+                            "type": "CheckBox",
+                            "name": "FuelLPG",
+                            "caption": "Autogas (LPG)"
+                        },
+                        {
+                            "type": "CheckBox",
+                            "name": "FuelCNG",
+                            "caption": "Erdgas (CNG)"
+                        }
+                    ]
+                },
+                {
+                    "type": "Label",
+                    "caption": "Super Plus, LPG und CNG erscheinen nur, wenn Tankerkönig sie liefert. Die Markttransparenzstelle meldet derzeit E5, E10 und Diesel."
+                },
+                {
+                    "type": "Label",
+                    "name": "FuelInfo",
+                    "caption": "-"
                 }
             ]
         },
@@ -162,6 +191,11 @@
             "items": [
                 {
                     "type": "CheckBox",
+                    "name": "EnableNational",
+                    "caption": "Bundesdurchschnitt abrufen und vergleichen (alle 6 Stunden)"
+                },
+                {
+                    "type": "CheckBox",
                     "name": "EnableHTMLBox",
                     "caption": "HTML-Variable (WebFront / ältere Visualisierungen – die Kachel braucht sie nicht)"
                 },
@@ -196,7 +230,7 @@
         {
             "type": "Button",
             "caption": "Jetzt aktualisieren",
-            "onClick": "echo TANK_Update($id) ? 'Preise aktualisiert.' : 'Aktualisierung fehlgeschlagen – siehe Status bzw. Debug.';"
+            "onClick": "echo TANK_Update($id) ? 'Preise aktualisiert.' : 'Nicht aktualisiert – Tankerkönig erlaubt eine Anfrage pro Minute. Sonst Status bzw. Debug prüfen.';"
         }
     ],
     "status": [
