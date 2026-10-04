@@ -282,18 +282,22 @@
                 },
                 {
                     "type": "Label",
-                    "caption": "Eigene Bilder für die Liste: Namen so eintragen, wie er in der Kachel steht (Groß-/Kleinschreibung egal). Ohne Bild erscheint ein Kürzel."
+                    "caption": "Eigene Symbole für die Tankstellen-Liste: Ein Symbol ersetzt in der Kachel den farbigen Kreis mit zwei Buchstaben vor dem Namen einer Tankstelle."
+                },
+                {
+                    "type": "Label",
+                    "caption": "So geht's: 1. Bild in Symcon als Medienobjekt anlegen (am besten quadratisch, bis 512 KB). 2. Unten auf „Hinzufügen“ klicken. 3. Bei „Tankstelle“ den Namen eintragen, der in der Kachel fett über der Adresse steht. 4. Bei „Symbol“ das Bild auswählen."
                 },
                 {
                     "type": "List",
                     "name": "BrandLogos",
-                    "caption": "Bilder für Tankstellen",
+                    "caption": "Eigene Symbole",
                     "rowCount": 6,
                     "add": true,
                     "delete": true,
                     "columns": [
                         {
-                            "caption": "Name (wie in der Kachel)",
+                            "caption": "Tankstelle (Name wie in der Kachel)",
                             "name": "Brand",
                             "width": "220px",
                             "add": "",
@@ -302,7 +306,7 @@
                             }
                         },
                         {
-                            "caption": "Bild (Medienobjekt, max. 512 KB)",
+                            "caption": "Symbol (Bild aus Symcon)",
                             "name": "Media",
                             "width": "auto",
                             "add": 0,

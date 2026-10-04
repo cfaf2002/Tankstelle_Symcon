@@ -81,15 +81,16 @@
             "Hintergrundbild (max. 3 MB)": "Background image (max. 3 MB)",
             "Abdunkeln": "Darken",
             "Unschärfe": "Blur",
-            "Eigene Bilder für die Liste: Namen so eintragen, wie er in der Kachel steht (Groß-/Kleinschreibung egal). Ohne Bild erscheint ein Kürzel.": "Own images for the list: enter the name as shown in the tile (case-insensitive). Without an image, initials are shown.",
-            "Bilder für Tankstellen": "Images for stations",
-            "Name (wie in der Kachel)": "Name (as shown in the tile)",
-            "Bild (Medienobjekt, max. 512 KB)": "Image (media object, max. 512 KB)",
             "Aktualisiert": "Updated",
             "Hintergrund": "Background",
             "Zapfhahn (mitgeliefert)": "Fuel nozzle (built-in)",
             "Eigenes Bild": "Own image",
-            "Kein Bild": "No image"
+            "Kein Bild": "No image",
+            "Eigene Symbole für die Tankstellen-Liste: Ein Symbol ersetzt in der Kachel den farbigen Kreis mit zwei Buchstaben vor dem Namen einer Tankstelle.": "Own symbols for the station list: a symbol replaces the coloured circle with two letters in front of a station's name in the tile.",
+            "So geht's: 1. Bild in Symcon als Medienobjekt anlegen (am besten quadratisch, bis 512 KB). 2. Unten auf „Hinzufügen“ klicken. 3. Bei „Tankstelle“ den Namen eintragen, der in der Kachel fett über der Adresse steht. 4. Bei „Symbol“ das Bild auswählen.": "How to: 1. Create the image in Symcon as a media object (ideally square, up to 512 KB). 2. Click “Add” below. 3. Under “Station”, enter the name shown in bold above the address in the tile. 4. Under “Symbol”, select the image.",
+            "Eigene Symbole": "Own symbols",
+            "Tankstelle (Name wie in der Kachel)": "Station (name as shown in the tile)",
+            "Symbol (Bild aus Symcon)": "Symbol (image from Symcon)"
         }
     }
 }

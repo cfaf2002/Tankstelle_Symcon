@@ -7,7 +7,7 @@
 [![PHP](https://img.shields.io/badge/PHP-8.0%2B-777bb4.svg)](https://www.php.net)
 [![Sorten](https://img.shields.io/badge/Sorten-E5%20%7C%20E10%20%7C%20Diesel%20%7C%20Plus%20%7C%20LPG%20%7C%20CNG-2fbf5b.svg)](#funktionen)
 [![Sicherheit](https://img.shields.io/badge/Sicherheit-HTTPS%20%C2%B7%20Ratenlimit%20%C2%B7%20Escaping-555.svg)](#sicherheit)
-[![Version](https://img.shields.io/badge/Version-3.6-green.svg)](#changelog)
+[![Version](https://img.shields.io/badge/Version-3.7-green.svg)](#changelog)
 [![Lizenz](https://img.shields.io/badge/Lizenz-MIT-lightgrey.svg)](LICENSE)
 [![Daten](https://img.shields.io/badge/Daten-Tankerk%C3%B6nig%20CC%20BY%204.0-orange.svg)](https://creativecommons.tankerkoenig.de)
 [![GitHub](https://img.shields.io/badge/GitHub-cfaf2002%2FTankstelle__Symcon-181717.svg?logo=github)](https://github.com/cfaf2002/Tankstelle_Symcon)
@@ -84,7 +84,7 @@ Danach eine neue Instanz **Tankstellen** anlegen.
 | Bundesdurchschnitt | Deutschlandweiten Ø-Preis abrufen (alle 6 Stunden, zeitversetzt) |
 | HTML-Variable | Zuschaltbar, für die Kachel nicht nötig |
 | Hintergrund | **Zapfhahn (mitgeliefert)**, **Eigenes Bild** (Medienobjekt, max. 3 MB) oder **Kein Bild**; dazu Abdunkeln (0–90 %) und Unschärfe (0–20 px) |
-| Bilder für Tankstellen | Liste „Name → Medienobjekt“ (Bild, max. 512 KB); Name so, wie er in der Kachel steht |
+| Eigene Symbole | Ersetzt in der Liste den farbigen Kreis mit zwei Buchstaben durch ein eigenes Bild: Tankstellen-Name (wie in der Kachel) und Bild aus Symcon (max. 512 KB) |
 | Detailvariablen | Adresse, Entfernung, Ø-Preis, Höchstpreis, Anzahl |
 | Preisalarm + Schwelle | Für den gewählten Kraftstoff, Schwelle in € |
 
@@ -127,8 +127,9 @@ Die Instanz bringt eine eigene Kachel mit (HTML-SDK). Einfach die Instanz in der
 Ab Werk zeigt die Kachel das mitgelieferte Motiv **Zapfhahn** (SVG, scharf in jeder Größe). Für ein eigenes Bild:
 
 1. Bild in Symcon als **Medienobjekt** vom Typ *Bild* anlegen (PNG, JPG, WebP, GIF oder SVG).
-2. In der Instanz unter **Darstellung der Kachel** bei *Hintergrund* „Eigenes Bild“ wählen und das Medienobjekt auswählen bzw. in der Liste **Bilder für Tankstellen**
-   den Namen eintragen (so wie er in der Kachel steht) und das Medienobjekt wählen.
+2. In der Instanz unter **Darstellung der Kachel** bei *Hintergrund* „Eigenes Bild“ wählen und das Medienobjekt auswählen bzw. in der Liste **Eigene Symbole**
+   auf „Hinzufügen“ klicken, den Tankstellen-Namen eintragen (so wie er in der Kachel fett über der Adresse steht)
+   und das Bild auswählen. Das Symbol ersetzt dann den farbigen Kreis mit zwei Buchstaben.
 3. Bilder werden nur beim Laden der Kachel übertragen, nicht bei jeder Preisänderung. Auf einem Hintergrundbild
    ist die Schrift immer hell.
 
@@ -203,6 +204,9 @@ für Hausautomation höchstens alle 5 Minuten mit zufälligem Zeitversatz, Umkre
 Bitte den eigenen API-Key **nicht** im Repository oder in Foren veröffentlichen.
 
 ## Changelog
+
+### 3.7
+- „Eigene Symbole“: verständliche Erklärung und Spaltennamen im Formular
 
 ### 3.6
 - Hintergrundmotiv „Zapfhahn“ neu gezeichnet: modern, schwarz-weiß mit Chrom-Akzenten
