@@ -716,8 +716,9 @@ class Tankstellen extends IPSModuleStrict
         $stamp    = ['PRESENTATION' => VARIABLE_PRESENTATION_DATE_TIME, 'DATE' => 1, 'TIME' => 1];
         $html     = ['PRESENTATION' => VARIABLE_PRESENTATION_WEB_CONTENT, 'HTML_TYPE' => 0, 'PADDING' => false];
         $alert    = ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'ICON' => 'bell', 'OPTIONS' => json_encode([
-                ['Value' => false, 'Caption' => $this->Translate('Nein'), 'IconActive' => false, 'IconValue' => '', 'Color' => -1],
-                ['Value' => true, 'Caption' => $this->Translate('Ja'), 'IconActive' => false, 'IconValue' => '', 'Color' => 0x22B14C]
+                // Wertanzeige: jede Option braucht ColorActive/ColorValue, sonst zeigt die Symcon-App „Invalid Configuration“
+                ['Value' => false, 'Caption' => $this->Translate('Nein'), 'IconActive' => false, 'IconValue' => '', 'ColorActive' => true, 'ColorValue' => 0x8796A5],
+                ['Value' => true, 'Caption' => $this->Translate('Ja'), 'IconActive' => false, 'IconValue' => '', 'ColorActive' => true, 'ColorValue' => 0x34B36B]
             ])];
 
         $this->MaintainVariable('CheapestPrice', $this->Translate('Günstigster Preis'), VARIABLETYPE_FLOAT, $price, 20, true);
