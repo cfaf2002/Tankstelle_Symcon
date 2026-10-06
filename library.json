@@ -4,9 +4,9 @@
     "name": "Tankstellen",
     "url": "https://github.com/cfaf2002/Tankstelle_Symcon",
     "compatibility": {
-        "version": "7.1"
+        "version": "8.1"
     },
-    "version": "3.7",
-    "build": 10,
-    "date": 1791138496
+    "version": "3.8",
+    "build": 11,
+    "date": 1791265798
 }

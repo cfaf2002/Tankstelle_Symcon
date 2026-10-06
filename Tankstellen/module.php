@@ -12,7 +12,7 @@ declare(strict_types=1);
  * @author  Armin Frohwerk
  * @license MIT
  */
-class Tankstellen extends IPSModule
+class Tankstellen extends IPSModuleStrict
 {
     private const API_V4           = 'https://creativecommons.tankerkoenig.de/api/v4';
     private const API_V1           = 'https://creativecommons.tankerkoenig.de/json';
@@ -63,7 +63,7 @@ class Tankstellen extends IPSModule
     private const STATUS_API_ERROR   = 204;
     private const STATUS_NO_FUEL     = 205;
 
-    public function Create()
+    public function Create(): void
     {
         parent::Create();
 
@@ -72,7 +72,7 @@ class Tankstellen extends IPSModule
         // Zugang & Standort
         $this->RegisterPropertyString('APIKey', '');
         $this->RegisterPropertyInteger('LocationSource', self::SOURCE_SYMCON);
-        $this->RegisterPropertyString('Location', json_encode($this->ReadSymconLocation() ?? ['latitude' => 0, 'longitude' => 0]));
+        $this->RegisterPropertyString('Location', (string) json_encode($this->ReadSymconLocation() ?? ['latitude' => 0, 'longitude' => 0]));
         $this->RegisterPropertyString('PLZ', '');
         $this->RegisterPropertyInteger('Radius', 5);
 
@@ -95,6 +95,7 @@ class Tankstellen extends IPSModule
         $this->RegisterPropertyFloat('AlertThreshold', 1.70);
 
         // Darstellung der Kachel
+        $this->RegisterPropertyInteger('TileTheme', 0);           // 0 = Symcon-Design, 1 = Dunkel, 2 = Hell
         $this->RegisterPropertyInteger('BackgroundMode', self::BG_BUILTIN);
         $this->RegisterPropertyInteger('BackgroundMedia', 0);
         $this->RegisterPropertyInteger('BackgroundDim', 25);
@@ -115,7 +116,7 @@ class Tankstellen extends IPSModule
         $this->SetVisualizationType(1);
     }
 
-    public function ApplyChanges()
+    public function ApplyChanges(): void
     {
         parent::ApplyChanges();
 
@@ -123,7 +124,7 @@ class Tankstellen extends IPSModule
         $this->UpdateMediaReferences();
         if (IPS_GetKernelRunlevel() === KR_READY) {
             // geänderte Bilder sofort an offene Kacheln schicken
-            $this->UpdateVisualizationValue(json_encode(['assets' => $this->BuildAssets()]));
+            $this->UpdateVisualizationValue((string) json_encode(['assets' => $this->BuildAssets()]));
         }
 
         if (!$this->ValidateConfig()) {
@@ -145,7 +146,7 @@ class Tankstellen extends IPSModule
         }
     }
 
-    public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
+    public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
     {
         if ($Message === IPS_KERNELSTARTED) {
             $this->UnregisterMessage(0, IPS_KERNELSTARTED);
@@ -153,7 +154,7 @@ class Tankstellen extends IPSModule
         }
     }
 
-    public function RequestAction($Ident, $Value)
+    public function RequestAction(string $Ident, mixed $Value): void
     {
         switch ($Ident) {
             case 'FuelType':
@@ -223,7 +224,7 @@ class Tankstellen extends IPSModule
                 return $this->Fail($error);
             }
 
-            $this->WriteAttributeString('Cache', json_encode([
+            $this->WriteAttributeString('Cache', (string) json_encode([
                 'fetched' => time(),
                 'api'     => $useLegacy ? 'v1' : 'v4',
                 'stations' => $stations
@@ -271,7 +272,7 @@ class Tankstellen extends IPSModule
                 ];
             }
         }
-        $this->WriteAttributeString('Stats', json_encode($stats));
+        $this->WriteAttributeString('Stats', (string) json_encode($stats));
         $this->Publish();
         return true;
     }
@@ -336,7 +337,7 @@ class Tankstellen extends IPSModule
         $this->UpdateFormField('PLZRow', 'visible', $Source === self::SOURCE_PLZ);
     }
 
-    public function GetConfigurationForm()
+    public function GetConfigurationForm(): string
     {
         $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true);
         $source = $this->ReadPropertyInteger('LocationSource');
@@ -386,12 +387,12 @@ class Tankstellen extends IPSModule
                     break;
             }
         });
-        return json_encode($form);
+        return (string) json_encode($form);
     }
 
-    public function GetVisualizationTile()
+    public function GetVisualizationTile(): string
     {
-        $html = file_get_contents(__DIR__ . '/module.html');
+        $html = (string) file_get_contents(__DIR__ . '/tile.html');
         $flags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
         // Bilder nur einmal beim Laden der Kachel übertragen, nicht bei jeder Preisänderung
         $assets = json_encode(['assets' => $this->BuildAssets()], $flags);
@@ -529,7 +530,7 @@ class Tankstellen extends IPSModule
                 }
                 $key = $this->FuelKey((string) ($fuel['name'] ?? ''), (string) ($fuel['category'] ?? ''));
                 if ($key === null) {
-                    $this->SendDebug('Unbekannte Sorte', json_encode($fuel), 0);
+                    $this->SendDebug('Unbekannte Sorte', (string) json_encode($fuel), 0);
                     continue;
                 }
                 if (isset($prices[$key])) {
@@ -691,19 +692,14 @@ class Tankstellen extends IPSModule
 
     private function MaintainVariables(): void
     {
-        $modern = $this->HasPresentations();
-        if (!$modern) {
-            $this->CreateLegacyProfiles();
-        }
+        $this->RemoveLegacyProfiles();
         $enabled = $this->EnabledFuelIndexes();
 
         $options = [];
         foreach ($enabled as $i) {
             $options[] = ['Value' => $i, 'Caption' => self::FUELS[$i]['label'], 'IconActive' => false, 'IconValue' => '', 'Color' => -1];
         }
-        $fuelPresentation = $modern
-            ? ['PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION, 'ICON' => 'gas-pump', 'LAYOUT' => 1, 'DISPLAY' => 0, 'OPTIONS' => json_encode($options)]
-            : 'TANK.FuelType';
+        $fuelPresentation = ['PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION, 'ICON' => 'gas-pump', 'LAYOUT' => 1, 'DISPLAY' => 0, 'OPTIONS' => json_encode($options)];
         $this->MaintainVariable('FuelType', $this->Translate('Kraftstoff'), VARIABLETYPE_INTEGER, $fuelPresentation, 10, !empty($enabled));
         if (!empty($enabled)) {
             $this->EnableAction('FuelType');
@@ -712,19 +708,17 @@ class Tankstellen extends IPSModule
             }
         }
 
-        $price    = $modern ? ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'SUFFIX' => ' €', 'DIGITS' => 3, 'ICON' => 'euro-sign'] : 'TANK.Price';
-        $delta    = $modern ? ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'SUFFIX' => ' ct', 'DIGITS' => 1, 'ICON' => 'scale-balanced'] : 'TANK.Cent';
-        $distance = $modern ? ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'SUFFIX' => ' km', 'DIGITS' => 1, 'ICON' => 'route'] : 'TANK.Distance';
-        $text     = $modern ? ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'ICON' => 'gas-pump'] : '';
-        $count    = $modern ? ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'ICON' => 'hashtag'] : '';
-        $stamp    = $modern ? ['PRESENTATION' => VARIABLE_PRESENTATION_DATE_TIME, 'DATE' => 1, 'TIME' => 1] : '~UnixTimestamp';
-        $html     = $modern ? ['PRESENTATION' => VARIABLE_PRESENTATION_WEB_CONTENT, 'HTML_TYPE' => 0, 'PADDING' => false] : '~HTMLBox';
-        $alert    = $modern
-            ? ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'ICON' => 'bell', 'OPTIONS' => json_encode([
+        $price    = ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'SUFFIX' => ' €', 'DIGITS' => 3, 'ICON' => 'euro-sign'];
+        $delta    = ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'SUFFIX' => ' ct', 'DIGITS' => 1, 'ICON' => 'scale-balanced'];
+        $distance = ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'SUFFIX' => ' km', 'DIGITS' => 1, 'ICON' => 'route'];
+        $text     = ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'ICON' => 'gas-pump'];
+        $count    = ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'ICON' => 'hashtag'];
+        $stamp    = ['PRESENTATION' => VARIABLE_PRESENTATION_DATE_TIME, 'DATE' => 1, 'TIME' => 1];
+        $html     = ['PRESENTATION' => VARIABLE_PRESENTATION_WEB_CONTENT, 'HTML_TYPE' => 0, 'PADDING' => false];
+        $alert    = ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'ICON' => 'bell', 'OPTIONS' => json_encode([
                 ['Value' => false, 'Caption' => $this->Translate('Nein'), 'IconActive' => false, 'IconValue' => '', 'Color' => -1],
                 ['Value' => true, 'Caption' => $this->Translate('Ja'), 'IconActive' => false, 'IconValue' => '', 'Color' => 0x22B14C]
-            ])]
-            : '~Alert.Reversed';
+            ])];
 
         $this->MaintainVariable('CheapestPrice', $this->Translate('Günstigster Preis'), VARIABLETYPE_FLOAT, $price, 20, true);
         $this->MaintainVariable('CheapestName', $this->Translate('Günstigste Tankstelle'), VARIABLETYPE_STRING, $text, 21, true);
@@ -749,27 +743,26 @@ class Tankstellen extends IPSModule
         $this->MaintainVariable('LastUpdate', $this->Translate('Letzte Aktualisierung'), VARIABLETYPE_INTEGER, $stamp, 90, true);
     }
 
-    private function HasPresentations(): bool
+    /**
+     * Die früheren Variablenprofile TANK.* (Symcon vor 8.0) löschen, sobald keine Variable sie mehr nutzt.
+     * Ein Profil, das noch irgendwo verwendet wird – z. B. von Hand zugewiesen –, bleibt erhalten.
+     */
+    private function RemoveLegacyProfiles(): void
     {
-        return defined('VARIABLE_PRESENTATION_VALUE_PRESENTATION') && defined('VARIABLE_PRESENTATION_ENUMERATION')
-            && defined('VARIABLE_PRESENTATION_DATE_TIME') && defined('VARIABLE_PRESENTATION_WEB_CONTENT');
-    }
-
-    private function CreateLegacyProfiles(): void
-    {
-        if (!IPS_VariableProfileExists('TANK.FuelType')) {
-            IPS_CreateVariableProfile('TANK.FuelType', VARIABLETYPE_INTEGER);
-            IPS_SetVariableProfileIcon('TANK.FuelType', 'Gauge');
+        $existing = array_values(array_filter(['TANK.FuelType', 'TANK.Price', 'TANK.Distance', 'TANK.Cent'], 'IPS_VariableProfileExists'));
+        if ($existing === []) {
+            return;
         }
-        foreach (self::FUELS as $i => $f) {
-            IPS_SetVariableProfileAssociation('TANK.FuelType', $i, $f['label'], '', -1);
+        $used = [];
+        foreach (IPS_GetVariableList() as $id) {
+            $v = IPS_GetVariable($id);
+            $used[(string) ($v['VariableProfile'] ?? '')] = true;
+            $used[(string) ($v['VariableCustomProfile'] ?? '')] = true;
         }
-        foreach (['TANK.Price' => [3, ' €', 'Euro'], 'TANK.Distance' => [1, ' km', 'Distance'], 'TANK.Cent' => [1, ' ct', 'Euro']] as $name => [$digits, $suffix, $icon]) {
-            if (!IPS_VariableProfileExists($name)) {
-                IPS_CreateVariableProfile($name, VARIABLETYPE_FLOAT);
-                IPS_SetVariableProfileDigits($name, $digits);
-                IPS_SetVariableProfileText($name, '', $suffix);
-                IPS_SetVariableProfileIcon($name, $icon);
+        foreach ($existing as $name) {
+            if (!isset($used[$name])) {
+                IPS_DeleteVariableProfile($name);
+                $this->SendDebug('Darstellungen', "altes Profil $name entfernt", 0);
             }
         }
     }
@@ -787,7 +780,7 @@ class Tankstellen extends IPSModule
         if ($this->ReadPropertyBoolean('EnableHTMLBox')) {
             $this->SetValueIfChanged('HTML', $this->RenderHTMLBox($selected));
         }
-        $this->UpdateVisualizationValue(json_encode($this->BuildTileData()));
+        $this->UpdateVisualizationValue((string) json_encode($this->BuildTileData()));
     }
 
     private function Fail(string $message): bool
@@ -928,6 +921,7 @@ class Tankstellen extends IPSModule
         }
 
         return [
+            'theme'     => $this->ReadPropertyInteger('TileTheme'),
             'selected'  => $this->SelectedFuelIndex(),
             'fuels'     => $fuels,
             'radius'    => $this->GetRadius(),
@@ -1120,7 +1114,7 @@ class Tankstellen extends IPSModule
         }
         $coords = $this->Geocode($plz);
         if ($coords !== null) {
-            $this->WriteAttributeString('GeoCache', json_encode([$plz => $coords]));
+            $this->WriteAttributeString('GeoCache', (string) json_encode([$plz => $coords]));
         }
         return $coords;
     }

@@ -1,16 +1,19 @@
-# Tankstellen
+# Tankstellen für IP-Symcon
 
-[![IP-Symcon](https://img.shields.io/badge/IP--Symcon-7.1%2B-blue.svg)](https://www.symcon.de)
-[![Symcon 9.0](https://img.shields.io/badge/optimiert%20f%C3%BCr-Symcon%209.0-0a6ebd.svg)](https://www.symcon.de)
-[![Darstellungen](https://img.shields.io/badge/Darstellungen-ab%208.0-0a6ebd.svg)](https://www.symcon.de/de/service/dokumentation/entwicklerbereich/sdk-tools/sdk-php/darstellungen/)
-[![Kachel](https://img.shields.io/badge/Kachel-HTML--SDK-22b14c.svg)](https://www.symcon.de/de/service/dokumentation/entwicklerbereich/sdk-tools/sdk-php/html-sdk/)
-[![PHP](https://img.shields.io/badge/PHP-8.0%2B-777bb4.svg)](https://www.php.net)
+[![IP-Symcon ab 8.1](https://img.shields.io/badge/IP--Symcon-ab_8.1-0b6fb3.svg)](https://www.symcon.de)
+[![Optimiert für Symcon 9.0](https://img.shields.io/badge/optimiert_f%C3%BCr-Symcon_9.0-0b6fb3.svg)](https://www.symcon.de/de/service/dokumentation/installation/migrationen/v81-v90-q1-2026/)
+[![Modul-Version 3.8 (Build 11)](https://img.shields.io/badge/Modul--Version-3.8_(Build_11)-informational.svg)](library.json)
+[![Tests](https://github.com/cfaf2002/Tankstelle_Symcon/actions/workflows/tests.yml/badge.svg)](https://github.com/cfaf2002/Tankstelle_Symcon/actions/workflows/tests.yml)
+[![PHP 8.3 und 8.5](https://img.shields.io/badge/PHP-8.3_%7C_8.5-777bb4.svg?logo=php&logoColor=white)](https://www.php.net)
+[![SDK: IPSModuleStrict](https://img.shields.io/badge/SDK-IPSModuleStrict-success.svg)](https://www.symcon.de/de/service/dokumentation/entwicklerbereich/sdk-tools/sdk-php/module/)
+[![Variablen: Darstellungen](https://img.shields.io/badge/Variablen-Darstellungen-success.svg)](https://www.symcon.de/de/service/dokumentation/entwicklerbereich/sdk-tools/sdk-php/darstellungen/)
+[![Kachel-Visualisierung: HTML-SDK](https://img.shields.io/badge/Kachel--Visualisierung-HTML--SDK-orange.svg)](https://www.symcon.de/de/service/dokumentation/entwicklerbereich/sdk-tools/sdk-php/html-sdk/)
+[![Farbschema: Symcon-Design, Dunkel, Hell](https://img.shields.io/badge/Farbschema-Symcon--Design_%7C_Dunkel_%7C_Hell-blueviolet.svg)](STYLEGUIDE.md)
+![Sprache: Deutsch | Englisch](https://img.shields.io/badge/Sprachen-Deutsch_%7C_Englisch-blueviolet.svg)
+[![Lizenz: MIT](https://img.shields.io/badge/Lizenz-MIT-green.svg)](LICENSE)
 [![Sorten](https://img.shields.io/badge/Sorten-E5%20%7C%20E10%20%7C%20Diesel%20%7C%20Plus%20%7C%20LPG%20%7C%20CNG-2fbf5b.svg)](#funktionen)
 [![Sicherheit](https://img.shields.io/badge/Sicherheit-HTTPS%20%C2%B7%20Ratenlimit%20%C2%B7%20Escaping-555.svg)](#sicherheit)
-[![Version](https://img.shields.io/badge/Version-3.7-green.svg)](#changelog)
-[![Lizenz](https://img.shields.io/badge/Lizenz-MIT-lightgrey.svg)](LICENSE)
 [![Daten](https://img.shields.io/badge/Daten-Tankerk%C3%B6nig%20CC%20BY%204.0-orange.svg)](https://creativecommons.tankerkoenig.de)
-[![GitHub](https://img.shields.io/badge/GitHub-cfaf2002%2FTankstelle__Symcon-181717.svg?logo=github)](https://github.com/cfaf2002/Tankstelle_Symcon)
 
 IP-Symcon-Modul für aktuelle Spritpreise aller Tankstellen im Umkreis über die
 [Tankerkönig-API](https://creativecommons.tankerkoenig.de) – mit allen Sorten, die die API liefert, Preistrend,
@@ -204,6 +207,10 @@ für Hausautomation höchstens alle 5 Minuten mit zufälligem Zeitversatz, Umkre
 Bitte den eigenen API-Key **nicht** im Repository oder in Foren veröffentlichen.
 
 ## Changelog
+
+### 3.8
+- Einheitliches Design nach `STYLEGUIDE.md`: Kachel-Grundlage (Farben, Schrift, Radien, Zustandsfarben) und Einstellung „Farbschema der Kachel“ (Symcon-Design, Dunkel, Hell); Kachel-Datei heißt `tile.html`; einheitliche Badges; gemeinsamer Test-Workflow mit Struktur- und Ladetest
+- Basisklasse `IPSModuleStrict` (ab Symcon 8.1), nur noch Darstellungen – alte Profile `TANK.*` werden entfernt, sobald keine Variable sie nutzt; Sortenwahl in der Akzentfarbe; Systemschrift
 
 ### 3.7
 - „Eigene Symbole“: verständliche Erklärung und Spaltennamen im Formular

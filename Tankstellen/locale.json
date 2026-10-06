@@ -90,7 +90,11 @@
             "So geht's: 1. Bild in Symcon als Medienobjekt anlegen (am besten quadratisch, bis 512 KB). 2. Unten auf „Hinzufügen“ klicken. 3. Bei „Tankstelle“ den Namen eintragen, der in der Kachel fett über der Adresse steht. 4. Bei „Symbol“ das Bild auswählen.": "How to: 1. Create the image in Symcon as a media object (ideally square, up to 512 KB). 2. Click “Add” below. 3. Under “Station”, enter the name shown in bold above the address in the tile. 4. Under “Symbol”, select the image.",
             "Eigene Symbole": "Own symbols",
             "Tankstelle (Name wie in der Kachel)": "Station (name as shown in the tile)",
-            "Symbol (Bild aus Symcon)": "Symbol (image from Symcon)"
+            "Symbol (Bild aus Symcon)": "Symbol (image from Symcon)",
+            "Farbschema der Kachel": "Tile color scheme",
+            "Symcon-Design (Farben der Visualisierung)": "Symcon design – colors of the visualization",
+            "Dunkel": "Dark",
+            "Hell": "Light"
         }
     }
 }

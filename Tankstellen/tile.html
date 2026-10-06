@@ -1,0 +1,436 @@
+<!--
+    Kachel für das Modul "Tankstellen" (IP-Symcon HTML-SDK)
+    Copyright (c) 2026 Armin Frohwerk · MIT-Lizenz (siehe LICENSE)
+    SPDX-License-Identifier: MIT
+
+    Preis der gewählten Sorte wie auf der Preistafel, Preisspanne der Umgebung und Liste der Tankstellen; optional Hintergrundbild. Daten: Tankerkönig/MTS-K, CC BY 4.0.
+    Gestaltung nach STYLEGUIDE.md (Kachel-Grundlage, Farbschema über applyTheme).
+-->
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Symcon-Icons (Font Awesome) aus der Visualisierung -->
+<script src="/icons.js" crossorigin="anonymous"></script>
+<style>
+    /* ===== Hausstil cfaf2002 · Kachel-Grundlage v1 (siehe STYLEGUIDE.md) =====
+       Farbschema 0 = Symcon-Design (Farben der Visualisierung), 1 = Dunkel, 2 = Hell.
+       Modulspezifisch ist nur --brand (Akzent der festen Farbschemas). */
+    :root {
+        --brand: #34b36b;
+        --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        --fg: var(--content-color, #eef3f7);
+        --accent: var(--accent-color, var(--brand));
+        --on-accent: #ffffff;
+        --muted: color-mix(in srgb, var(--fg) 65%, transparent);
+        --faint: color-mix(in srgb, var(--fg) 40%, transparent);
+        --line: color-mix(in srgb, var(--fg) 15%, transparent);
+        --surface: color-mix(in srgb, var(--fg) 7%, transparent);
+        --surface-hover: color-mix(in srgb, var(--fg) 12%, transparent);
+        --popup: var(--card-color, #232a33);
+        --ok: #34b36b;
+        --warn: #e2a63b;
+        --bad: #e5484d;
+        --info: #4b8ef0;
+        --off: #8796a5;
+        --radius-l: 14px;
+        --radius: 12px;
+        --radius-s: 8px;
+        --pill: 999px;
+        --gap: 8px;
+    }
+    html.theme-dark  { --fg: #eef3f7; --accent: var(--brand); --tile-bg: #1b2530; --popup: #232d39; }
+    html.theme-light { --fg: #1d2b36; --accent: var(--brand); --tile-bg: #e9eef3; --popup: #ffffff; }
+    html.theme-dark body, html.theme-light body { background: var(--tile-bg); }
+    html, body { font-family: var(--font); color: var(--fg); -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+    /* ===== Ende Kachel-Grundlage ===== */
+
+    /* Tankstellen-Kachel · MIT © 2026 Armin Frohwerk · Daten: Tankerkönig/MTS-K, CC BY 4.0 */
+    /* Modul-Variablen aus der Kachel-Grundlage */
+    :root {
+        --text: var(--fg);
+        --cheap: var(--ok);
+        --dear: var(--bad);
+        --top: 52px;        /* Platz für Titel und Vollbild-Symbol der Symcon-Kachel */
+        --side: 18px;       /* Seitenabstand – bündig mit dem Kacheltitel */
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: transparent; color: var(--text); font-family: var(--font); -webkit-font-smoothing: antialiased; }
+    body { container-type: size; overflow: hidden; font-size: 13px; }
+    button { font: inherit; color: inherit; }
+    .num { font-variant-numeric: tabular-nums; }
+
+    .tile { height: 100%; padding: var(--top) var(--side) 10px; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 1fr auto; gap: 14px; }
+
+    /* Kraftstoffwahl: ein Segment-Schalter wie bei Symcon-Aufzählungen */
+    .seg { position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--surface-hover); border-radius: var(--pill); padding: 3px; }
+    .seg .knob { position: absolute; top: 3px; bottom: 3px; left: 3px; border-radius: var(--pill); background: var(--accent); transition: transform .25s cubic-bezier(.3, .7, .2, 1), width .25s; }
+    .seg button { position: relative; border: 0; background: none; cursor: pointer; padding: 6px 4px; border-radius: var(--pill); line-height: 1.2; -webkit-tap-highlight-color: transparent; }
+        .seg .k { display: block; font-weight: 600; font-size: 12px; }
+    .seg .v { display: block; font-size: 11px; color: var(--muted); }
+    .seg button[aria-pressed="true"] { color: var(--on-accent); }
+    .seg button[aria-pressed="true"] .v { color: rgba(255, 255, 255, .8); }
+
+    /* Hauptbereich: der Preis wie auf der Preistafel */
+    .main { min-width: 0; display: grid; gap: 10px; align-content: start; }
+    .price { font-size: 52px; font-weight: 600; line-height: .95; letter-spacing: -1px; white-space: nowrap; }
+    .price sup { font-size: .5em; color: var(--cheap); margin-left: 1px; vertical-align: .82em; letter-spacing: 0; }
+    .price .eur { font-size: .42em; font-weight: 500; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
+    .head { display: flex; align-items: flex-end; gap: 14px; }
+    .trend { font-size: 12px; font-weight: 600; white-space: nowrap; padding-bottom: 6px; }
+    .trend.down { color: var(--cheap); } .trend.up { color: var(--dear); }
+    .who .name { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .who .meta { color: var(--muted); overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+    .badge { justify-self: start; font-size: 11px; font-weight: 600; padding: 2px 10px; border-radius: var(--pill); background: color-mix(in srgb, var(--cheap) 22%, transparent); color: var(--cheap); }
+
+    /* Preisspanne der Umgebung mit Ø und Bundesschnitt */
+    .range { display: grid; gap: 8px; padding: 0 7px; }
+    .bar { position: relative; height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--cheap), color-mix(in srgb, var(--cheap) 40%, var(--dear)) 60%, var(--dear)); opacity: .9; }
+    .bar .mark { position: absolute; top: 50%; width: 2px; height: 14px; transform: translate(-1px, -50%); background: var(--text); border-radius: 1px; }
+    .bar .mark.de { background: none; border-left: 2px dotted var(--text); width: 0; }
+    .bar .dot { position: absolute; top: 50%; width: 12px; height: 12px; transform: translate(-6px, -50%); border-radius: 50%; background: var(--cheap); box-shadow: 0 0 0 3px color-mix(in srgb, var(--text) 85%, transparent); }
+    .legend { margin: 0 -7px; display: flex; flex-wrap: wrap; row-gap: 2px; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 11px; }
+    .legend b, .legend .b { color: var(--text); font-weight: 600; }
+    .legend sup, .seg .v sup { font-size: .75em; vertical-align: .35em; }
+
+    /* Kennzahlen – nur wenn Platz ist (breite Kachel) */
+    .facts { display: none; grid-template-columns: 1fr 1fr; gap: 14px 20px; margin: 6px 0 0; padding-top: 14px; border-top: 1px solid var(--line); }
+    .facts div { min-width: 0; }
+    .facts dt { color: var(--muted); font-size: 11px; }
+    .facts dd { margin: 2px 0 0; font-size: 16px; font-weight: 600; white-space: nowrap; }
+    .facts dd sup { font-size: .6em; vertical-align: .5em; }
+    .facts dd small { font-size: 11px; font-weight: 500; color: var(--muted); margin-left: 4px; }
+
+    /* Liste */
+    .list { min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--surface-hover) transparent; margin-right: -4px; padding-right: 4px; }
+    .list::-webkit-scrollbar { width: 6px; } .list::-webkit-scrollbar-thumb { background: var(--surface-hover); border-radius: 3px; }
+    .row { display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+    .row:first-child { border-top: 0; }
+    .logo { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 700; color: #fff; letter-spacing: .2px; overflow: hidden; }
+    .logo.img { background: #fff; }
+    .logo img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
+
+    /* Hintergrundbild aus der Instanz, abgedunkelt für gute Lesbarkeit */
+    .bg, .shade { position: fixed; inset: 0; pointer-events: none; z-index: -1; }
+    .bg { background: center / cover no-repeat; transform: scale(1.06); }
+    .shade { background: rgba(0, 0, 0, var(--dim, .55)); }
+    .row .n { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .row .s { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .row .p { font-size: 15px; font-weight: 600; text-align: right; white-space: nowrap; }
+    .row .p sup { font-size: .6em; vertical-align: .55em; }
+    .row .d { font-size: 11px; text-align: right; color: var(--muted); white-space: nowrap; }
+    .row.best .p { color: var(--cheap); }
+    .row.closed { opacity: .45; }
+    .row .d .up { color: var(--dear); } .row .d .down { color: var(--cheap); }
+
+    .msg { padding: 10px 12px; border-radius: var(--radius); background: var(--surface-hover); }
+    .msg.err { background: color-mix(in srgb, var(--dear) 16%, transparent); color: var(--dear); }
+
+    .foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); }
+    .refresh { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 2px 0; cursor: pointer; color: var(--muted); min-width: 0; text-align: left; }
+    .refresh #updated { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .foot > span { white-space: nowrap; flex: 0 0 auto; }
+    .refresh:hover { color: var(--text); }
+    .refresh.spin i { animation: spin .8s linear infinite; }
+    .refresh.stale { color: var(--dear); }
+    .src-short { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Breite Kachel: Preis links, Liste rechts */
+    @container (min-width: 560px) and (min-height: 300px) {
+        .tile { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); grid-template-rows: auto 1fr auto; column-gap: 24px; }
+        .seg, .foot { grid-column: 1 / -1; }
+        .list { grid-row: 2; grid-column: 2; }
+        .price { font-size: 60px; }
+        .facts { display: grid; }
+    }
+    /* Mittlere Höhe: ohne Liste */
+    @container (max-height: 330px) { .list { display: none; } }
+    @container (max-height: 330px) and (min-width: 560px) { .tile { grid-template-columns: 1fr; } }
+    /* Klein: nur Auswahl, Preis und Tankstelle */
+    @container (max-height: 240px) {
+        .tile { padding-top: 40px; padding-bottom: 6px; }
+        .range, .who .meta, .badge, .src-long, .ago { display: none; }
+        .src-short { display: inline; }
+        .foot { font-size: 10px; }
+        .tile { gap: 10px; }
+        .price { font-size: 40px; }
+    }
+    @container (max-height: 170px) { .seg .v, .trend, .who { display: none; } .price { font-size: 32px; } }
+    @container (max-width: 280px) { .price { font-size: 40px; } }
+
+    /* Schmale Kacheln (Handy): kurze Quellenangabe */
+    @container (max-width: 460px) { .src-long { display: none; } .src-short { display: inline; } }
+
+    @media (prefers-reduced-motion: reduce) { .seg .knob { transition: none; } .refresh.spin i { animation: none; } }
+</style>
+</head>
+<body>
+<div class="bg" id="bg" hidden></div><div class="shade" id="shade" hidden></div>
+<div class="tile">
+    <div class="seg" id="seg" role="group" aria-label="Kraftstoff"><div class="knob" id="knob"></div></div>
+    <div class="main" id="main"></div>
+    <div class="list" id="list"></div>
+    <div class="foot">
+        <button class="refresh" id="refresh" type="button" title="Jetzt aktualisieren"><i class="fa-light fa-arrows-rotate"></i><span id="updated"></span></button>
+        <span><span class="src-long">Daten: Tankerkönig (CC BY 4.0)</span><span class="src-short">Tankerkönig</span></span>
+    </div>
+</div>
+
+<script>
+    // Hausstil: Farbschema der Kachel (0 = Symcon-Design, 1 = Dunkel, 2 = Hell)
+    function applyTheme(theme) {
+        var root = document.documentElement;
+        root.classList.toggle('theme-dark', theme === 1);
+        root.classList.toggle('theme-light', theme === 2);
+    }
+
+    let state = null;
+    let selected = null;
+    let assets = { background: null, dim: 55, blur: 0, logos: {} };
+    const $ = (id) => document.getElementById(id);
+    const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+
+    // Preis in Tankstellen-Optik: 1,68⁹ €
+    function priceNode(p, cls, euro = true) {
+        const span = el('span', (cls || '') + ' num');
+        if (p === null || p === undefined || isNaN(p)) { span.textContent = '–'; return span; }
+        const s = Number(p).toFixed(3);
+        span.append(s.slice(0, -1).replace('.', ','), el('sup', '', s.slice(-1)));
+        if (euro) span.append(el('span', 'eur', '€'));
+        return span;
+    }
+    const plain = (p) => Number(p).toFixed(3).replace('.', ',');
+    const km = (d) => Number(d).toFixed(1).replace('.', ',') + ' km';
+    const clock = (ts) => new Date(ts * 1000).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    function ago(ts) {
+        const m = Math.max(0, Math.round((Date.now() / 1000 - ts) / 60));
+        if (m < 1) return 'gerade eben';
+        if (m < 60) return 'vor ' + m + ' Min.';
+        const h = Math.round(m / 60);
+        return h < 24 ? 'vor ' + h + ' Std.' : 'am ' + new Date(ts * 1000).toLocaleDateString('de-DE');
+    }
+    function cents(a) { return (a > 0 ? '+' : '−') + Math.abs(Math.round(a * 100)) + ' ct'; }
+
+    // Öffnungsstatus aus API v4 (opensAt/closesAt)
+    function openText(s) {
+        if (!s.isOpen) return s.opensAt ? 'öffnet ' + clock(s.opensAt) : 'geschlossen';
+        if (s.closesAt && s.closesAt - Date.now() / 1000 < 86400) return 'bis ' + clock(s.closesAt);
+        return '';
+    }
+
+    // Kreis mit Kürzel, Farbe stabil aus dem Namen abgeleitet
+    const PALETTE = ['#2f6fdf', '#d9534f', '#e0a800', '#2a9d8f', '#7b5cd6', '#e76f51', '#3a86a8', '#8d6e63', '#c2185b', '#5c7cfa'];
+    const brandKey = (v) => (v || '').toLowerCase().replace(/[^a-z0-9äöüß]/g, '');
+    function logoFor(brand, name) {
+        const logos = assets.logos || {};
+        const b = brandKey(brand), n = brandKey(name);
+        if (b && logos[b]) return logos[b];
+        if (n && logos[n]) return logos[n];
+        for (const k of Object.keys(logos)) if (k && (n.startsWith(k) || b.startsWith(k))) return logos[k];
+        return null;
+    }
+    function logo(name, brand) {
+        const src = logoFor(brand, name);
+        if (src) {
+            const d = el('div', 'logo img');
+            const img = el('img'); img.alt = name || ''; img.src = src; img.decoding = 'async';
+            d.append(img);
+            return d;
+        }
+        const clean = (name || '?').replace(/[^A-Za-zÄÖÜäöü0-9 ]/g, '').trim();
+        const parts = clean.split(/\s+/);
+        const text = (parts.length > 1 ? parts[0][0] + parts[1][0] : clean.slice(0, 2)).toUpperCase() || '?';
+        let h = 0; for (const c of clean.toLowerCase()) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+        const d = el('div', 'logo', text);
+        d.style.background = PALETTE[h % PALETTE.length];
+        return d;
+    }
+
+    function renderSeg() {
+        const seg = $('seg');
+        seg.querySelectorAll('button').forEach((b) => b.remove());
+        const fuels = state.fuels || [];
+        fuels.forEach((f) => {
+            const b = el('button');
+            b.type = 'button';
+            b.setAttribute('aria-pressed', String(f.index === selected));
+            b.append(el('span', 'k', f.short));
+            const v = priceNode(f.min, 'v', false);
+            b.append(v);
+            b.addEventListener('click', () => {
+                if (f.index === selected) return;
+                selected = f.index;            // sofort lokal umschalten
+                render();
+                requestAction('FuelType', f.index);
+            });
+            seg.append(b);
+        });
+        const pos = Math.max(0, fuels.findIndex((f) => f.index === selected));
+        const knob = $('knob');
+        knob.style.display = fuels.length ? '' : 'none';
+        knob.style.width = 'calc((100% - 6px) / ' + Math.max(1, fuels.length) + ')';
+        knob.style.transform = 'translateX(' + (pos * 100) + '%)';
+    }
+
+    function renderMain(f) {
+        const main = $('main');
+        main.replaceChildren();
+        if (state.error) main.append(el('div', 'msg err', state.error));
+        const c = f && f.cheapest;
+        if (!c) {
+            if (!state.error) main.append(el('div', 'msg', state.updated ? 'Im Umkreis von ' + state.radius + ' km gibt es gerade keinen Preis für ' + (f ? f.label : 'diese Sorte') + '.' : 'Preise werden geladen …'));
+            return;
+        }
+
+        const head = el('div', 'head');
+        head.append(priceNode(c.price, 'price'));
+        if (c.change !== null && c.change !== undefined && c.change !== 0) {
+            const t = el('div', 'trend ' + (c.change < 0 ? 'down' : 'up'), (c.change < 0 ? '↓ ' : '↑ ') + cents(c.change));
+            if (c.changed) t.title = 'Letzte Änderung ' + ago(c.changed);
+            head.append(t);
+        }
+        main.append(head);
+
+        const who = el('div', 'who');
+        const meta = [c.address, km(c.distance), openText(c)].filter(Boolean).join(', ');
+        who.append(el('div', 'name', c.name), el('div', 'meta', meta));
+        main.append(who);
+
+        if (state.threshold !== null && state.threshold !== undefined && c.price <= state.threshold) {
+            main.append(el('div', 'badge', 'Unter deiner Schwelle von ' + plain(state.threshold) + ' €'));
+        }
+
+        // Preisspanne: wo liegt der Bestpreis im Vergleich?
+        if (f.max > f.min) {
+            const lo = Math.min(f.min, f.national ?? f.min), hi = Math.max(f.max, f.national ?? f.max);
+            const pct = (v) => ((v - lo) / (hi - lo) * 100).toFixed(1) + '%';
+            const range = el('div', 'range');
+            const bar = el('div', 'bar');
+            const avg = el('div', 'mark'); avg.style.left = pct(f.avg); avg.title = 'Ø hier ' + plain(f.avg) + ' €';
+            bar.append(avg);
+            if (f.national) { const de = el('div', 'mark de'); de.style.left = pct(f.national); de.title = 'Ø Deutschland ' + plain(f.national) + ' €'; bar.append(de); }
+            const dot = el('div', 'dot'); dot.style.left = pct(c.price); bar.append(dot);
+            const legend = el('div', 'legend');
+            const left = el('span'); left.append(f.count + ' Stationen, ', priceNode(f.min, 'b', false), ' bis ', priceNode(f.max, 'b', false), ' €');
+            const right = el('span');
+            if (f.national) {
+                const diff = Math.round((f.national - c.price) * 100);
+                right.append(el('b', 'num', Math.abs(diff) + ' ct'), diff >= 0 ? ' unter Bundesschnitt' : ' über Bundesschnitt');
+            } else {
+                right.append('Ø hier ', priceNode(f.avg, 'b', false), ' €');
+            }
+            legend.append(left, right);
+            range.append(bar, legend);
+            main.append(range);
+        }
+
+        // Kennzahlen für breite Kacheln
+        const facts = el('dl', 'facts');
+        const fact = (label, ...value) => { const d = el('div'); const dd = el('dd'); dd.append(...value); d.append(el('dt', '', label), dd); facts.append(d); };
+        fact('Ø im Umkreis', priceNode(f.avg, '', false), ' €');
+        fact('Ø Deutschland', ...(f.national ? [priceNode(f.national, '', false), ' €'] : ['–']));
+        fact('Teuerste Station', priceNode(f.max, '', false), ' €');
+        if (c.changed) {
+            fact('Letzte Preisänderung', ago(c.changed), el('small', '', c.change ? cents(c.change) : ''));
+        } else {
+            fact('Stationen mit Preis', String(f.count));
+        }
+        main.append(facts);
+    }
+
+    function renderList(f) {
+        const list = $('list');
+        list.replaceChildren();
+        if (!f || !f.cheapest) return;
+        (f.stations || []).forEach((s) => {
+            const row = el('div', 'row' + (s.id === f.cheapest.id ? ' best' : '') + (s.isOpen ? '' : ' closed'));
+            const mid = el('div'); mid.style.minWidth = '0';
+            mid.append(el('div', 'n', s.name), el('div', 's', [s.address, openText(s)].filter(Boolean).join(', ')));
+            const right = el('div');
+            right.append(priceNode(s.price, 'p', false));
+            right.firstChild.style.display = 'block';
+            const d = el('div', 'd');
+            if (s.change) d.append(el('span', s.change < 0 ? 'down' : 'up', (s.change < 0 ? '↓' : '↑') + ' '));
+            d.append(km(s.distance));
+            right.append(d);
+            row.append(logo(s.brand || s.name, s.brand), mid, right);
+            list.append(row);
+        });
+    }
+
+    function render() {
+        if (!state) return;
+        renderSeg();
+        const f = (state.fuels || []).find((x) => x.index === selected);
+        renderMain(f);
+        renderList(f);
+        renderUpdated();
+    }
+
+    // Zeitpunkt der letzten Aktualisierung – tickt alle 30 Sekunden weiter
+    function renderUpdated() {
+        const r = $('refresh'), out = $('updated');
+        out.replaceChildren();
+        if (!state || !state.updated) { out.textContent = 'Jetzt aktualisieren'; r.classList.remove('stale'); return; }
+        const ageMin = (Date.now() / 1000 - state.updated) / 60;
+        const stale = ageMin > 2 * (state.interval || 15) + 5;
+        r.classList.toggle('stale', stale);
+        r.title = stale ? 'Daten sind älter als erwartet – jetzt aktualisieren' : 'Jetzt aktualisieren';
+        out.append('Aktualisiert ' + clock(state.updated) + ' Uhr', el('span', 'ago', ', ' + ago(state.updated)));
+    }
+    setInterval(renderUpdated, 30000);
+
+    // Aktualisieren (höchstens 1x pro Minute, das prüft das Modul)
+    (function initRefresh() {
+        const r = $('refresh');
+        const icon = r.querySelector('i');
+        r.addEventListener('click', () => { r.classList.add('spin'); requestAction('Refresh', true); });
+        requestAnimationFrame(() => {
+            const c = getComputedStyle(icon, '::before').content;
+            if (!c || c === 'none' || c === 'normal' || c === '""') icon.textContent = '⟳';
+        });
+    })();
+
+    // Hintergrundbild anwenden: auf Bildern immer helle Schrift
+    function applyBackground() {
+        const bg = $('bg'), shade = $('shade'), root = document.documentElement.style;
+        if (assets.background) {
+            bg.style.backgroundImage = 'url("' + assets.background + '")';
+            bg.style.backgroundPosition = assets.position || 'center';
+            bg.style.filter = assets.blur ? 'blur(' + Number(assets.blur) + 'px)' : '';
+            root.setProperty('--dim', String(Number(assets.dim) / 100));
+            bg.hidden = false; shade.hidden = false;
+            root.setProperty('--fg', '#ffffff');
+        } else {
+            bg.hidden = true; shade.hidden = true;
+            bg.style.backgroundImage = '';
+            root.removeProperty('--fg');
+        }
+    }
+
+    // Von Symcon aufgerufen: initial mit Objekt, danach mit JSON-String
+    function handleMessage(data) {
+        let msg;
+        try { msg = typeof data === 'string' ? JSON.parse(data) : data; } catch (e) { return; }
+        if (!msg) return;
+        if (typeof msg.theme === 'number') applyTheme(msg.theme);
+        if (msg.assets) {             // Bilder (selten): Hintergrund und Logos
+            assets = msg.assets;
+            applyBackground();
+            render();
+            return;
+        }
+        state = msg;
+        selected = state.selected;
+        $('refresh').classList.remove('spin');
+        render();
+    }
+</script>
+</body>
+</html>
