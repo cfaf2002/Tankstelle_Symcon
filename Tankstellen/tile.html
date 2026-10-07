@@ -5,6 +5,7 @@
 
     Preis der gewählten Sorte wie auf der Preistafel, Preisspanne der Umgebung und Liste der Tankstellen; optional Hintergrundbild. Daten: Tankerkönig/MTS-K, CC BY 4.0.
     Gestaltung nach STYLEGUIDE.md (Kachel-Grundlage, Farbschema über applyTheme).
+    Sicherheit: Inhalte nur per DOM/textContent, keine Daten als HTML.
 -->
 <!DOCTYPE html>
 <html lang="de">
@@ -58,6 +59,17 @@
         --dear: var(--bad);
         --top: 52px;        /* Platz für Titel und Vollbild-Symbol der Symcon-Kachel */
         --side: 18px;       /* Seitenabstand – bündig mit dem Kacheltitel */
+        /* Kreise mit Markenkürzel: Farben aus den Zustandsfarben der Grundlage abgeleitet */
+        --logo-0: var(--info);
+        --logo-1: var(--bad);
+        --logo-2: color-mix(in srgb, var(--warn) 85%, var(--fg));
+        --logo-3: color-mix(in srgb, var(--ok) 75%, var(--info));
+        --logo-4: color-mix(in srgb, var(--info) 55%, var(--bad));
+        --logo-5: color-mix(in srgb, var(--bad) 55%, var(--warn));
+        --logo-6: color-mix(in srgb, var(--info) 70%, var(--ok));
+        --logo-7: color-mix(in srgb, var(--off) 60%, var(--warn));
+        --logo-8: color-mix(in srgb, var(--bad) 75%, var(--info));
+        --logo-9: color-mix(in srgb, var(--info) 75%, var(--off));
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; height: 100%; background: transparent; color: var(--text); font-family: var(--font); -webkit-font-smoothing: antialiased; }
@@ -70,11 +82,11 @@
     /* Kraftstoffwahl: ein Segment-Schalter wie bei Symcon-Aufzählungen */
     .seg { position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--surface-hover); border-radius: var(--pill); padding: 3px; }
     .seg .knob { position: absolute; top: 3px; bottom: 3px; left: 3px; border-radius: var(--pill); background: var(--accent); transition: transform .25s cubic-bezier(.3, .7, .2, 1), width .25s; }
-    .seg button { position: relative; border: 0; background: none; cursor: pointer; padding: 6px 4px; border-radius: var(--pill); line-height: 1.2; -webkit-tap-highlight-color: transparent; }
+    .seg button { position: relative; border: 0; background: none; cursor: pointer; padding: 6px 4px; min-height: 36px; border-radius: var(--pill); line-height: 1.2; -webkit-tap-highlight-color: transparent; }
         .seg .k { display: block; font-weight: 600; font-size: 12px; }
     .seg .v { display: block; font-size: 11px; color: var(--muted); }
     .seg button[aria-pressed="true"] { color: var(--on-accent); }
-    .seg button[aria-pressed="true"] .v { color: rgba(255, 255, 255, .8); }
+    .seg button[aria-pressed="true"] .v { color: color-mix(in srgb, var(--on-accent) 80%, transparent); }
 
     /* Hauptbereich: der Preis wie auf der Preistafel */
     .main { min-width: 0; display: grid; gap: 10px; align-content: start; }
@@ -111,8 +123,8 @@
     .list::-webkit-scrollbar { width: 6px; } .list::-webkit-scrollbar-thumb { background: var(--surface-hover); border-radius: 3px; }
     .row { display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
     .row:first-child { border-top: 0; }
-    .logo { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 700; color: #fff; letter-spacing: .2px; overflow: hidden; }
-    .logo.img { background: #fff; }
+    .logo { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 700; color: var(--on-accent); letter-spacing: .2px; overflow: hidden; }
+    .logo.img { background: #fff; } /* weißer Grund hinter Markenlogos (Bilder), wie auf dem Preisschild */
     .logo img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
 
     /* Hintergrundbild aus der Instanz, abgedunkelt für gute Lesbarkeit */
@@ -132,7 +144,8 @@
     .msg.err { background: color-mix(in srgb, var(--dear) 16%, transparent); color: var(--dear); }
 
     .foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); }
-    .refresh { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 2px 0; cursor: pointer; color: var(--muted); min-width: 0; text-align: left; }
+    /* Klickfläche mindestens 36 px hoch – der negative Rand hält die Fußzeile so niedrig wie zuvor */
+    .refresh { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 2px 8px 2px 0; min-height: 36px; margin: -10px 0; cursor: pointer; color: var(--muted); min-width: 0; text-align: left; }
     .refresh #updated { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .foot > span { white-space: nowrap; flex: 0 0 auto; }
     .refresh:hover { color: var(--text); }
@@ -140,6 +153,8 @@
     .refresh.stale { color: var(--dear); }
     .src-short { display: none; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    /* Kachel nicht sichtbar: Animation ruht */
+    html.versteckt .refresh.spin i { animation-play-state: paused; }
 
     /* Breite Kachel: Preis links, Liste rechts */
     @container (min-width: 560px) and (min-height: 300px) {
@@ -225,7 +240,7 @@
     }
 
     // Kreis mit Kürzel, Farbe stabil aus dem Namen abgeleitet
-    const PALETTE = ['#2f6fdf', '#d9534f', '#e0a800', '#2a9d8f', '#7b5cd6', '#e76f51', '#3a86a8', '#8d6e63', '#c2185b', '#5c7cfa'];
+    const PALETTE_SIZE = 10;    // --logo-0 … --logo-9 im Stil
     const brandKey = (v) => (v || '').toLowerCase().replace(/[^a-z0-9äöüß]/g, '');
     function logoFor(brand, name) {
         const logos = assets.logos || {};
@@ -248,7 +263,7 @@
         const text = (parts.length > 1 ? parts[0][0] + parts[1][0] : clean.slice(0, 2)).toUpperCase() || '?';
         let h = 0; for (const c of clean.toLowerCase()) h = (h * 31 + c.charCodeAt(0)) >>> 0;
         const d = el('div', 'logo', text);
-        d.style.background = PALETTE[h % PALETTE.length];
+        d.style.background = 'var(--logo-' + (h % PALETTE_SIZE) + ')';
         return d;
     }
 
@@ -385,12 +400,20 @@
         out.append('Aktualisiert ' + clock(state.updated) + ' Uhr', el('span', 'ago', ', ' + ago(state.updated)));
     }
     setInterval(renderUpdated, 30000);
+    document.addEventListener('visibilitychange', () => document.documentElement.classList.toggle('versteckt', document.hidden));
 
     // Aktualisieren (höchstens 1x pro Minute, das prüft das Modul)
     (function initRefresh() {
         const r = $('refresh');
         const icon = r.querySelector('i');
-        r.addEventListener('click', () => { r.classList.add('spin'); requestAction('Refresh', true); });
+        let spinTimer = null;
+        r.addEventListener('click', () => {
+            r.classList.add('spin');
+            requestAction('Refresh', true);
+            // Kommt keine Antwort (z. B. Fehler im Modul), das Drehen spätestens nach 20 s beenden
+            clearTimeout(spinTimer);
+            spinTimer = setTimeout(() => r.classList.remove('spin'), 20000);
+        });
         requestAnimationFrame(() => {
             const c = getComputedStyle(icon, '::before').content;
             if (!c || c === 'none' || c === 'normal' || c === '""') icon.textContent = '⟳';

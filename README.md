@@ -2,7 +2,7 @@
 
 [![IP-Symcon ab 8.1](https://img.shields.io/badge/IP--Symcon-ab_8.1-0b6fb3.svg)](https://www.symcon.de)
 [![Optimiert für Symcon 9.0](https://img.shields.io/badge/optimiert_f%C3%BCr-Symcon_9.0-0b6fb3.svg)](https://www.symcon.de/de/service/dokumentation/installation/migrationen/v81-v90-q1-2026/)
-[![Modul-Version 3.8 (Build 13)](https://img.shields.io/badge/Modul--Version-3.8_(Build_13)-informational.svg)](library.json)
+[![Modul-Version 3.9 (Build 14)](https://img.shields.io/badge/Modul--Version-3.9_(Build_14)-informational.svg)](library.json)
 [![Tests](https://github.com/cfaf2002/Tankstelle_Symcon/actions/workflows/tests.yml/badge.svg)](https://github.com/cfaf2002/Tankstelle_Symcon/actions/workflows/tests.yml)
 [![PHP 8.3 und 8.5](https://img.shields.io/badge/PHP-8.3_%7C_8.5-777bb4.svg?logo=php&logoColor=white)](https://www.php.net)
 [![SDK: IPSModuleStrict](https://img.shields.io/badge/SDK-IPSModuleStrict-success.svg)](https://www.symcon.de/de/service/dokumentation/entwicklerbereich/sdk-tools/sdk-php/module/)
@@ -159,6 +159,8 @@ TANK_ReportError(int $InstanzID, string $StationsID, string $Typ, string $Korrek
 RequestAction(IPS_GetObjectIDByIdent('FuelType', $InstanzID), 2);
 ```
 
+`TANK_Update` und `TANK_UpdateStats` sind zugleich die Ziele der Timer. Die Helfer des Formulars (Standortquelle, Hintergrund, PLZ prüfen) laufen intern über `RequestAction` und sind keine Befehle mehr.
+
 ## Was die Tankerkönig-API kann
 
 | Funktion | Endpunkt | Im Modul |
@@ -207,6 +209,14 @@ für Hausautomation höchstens alle 5 Minuten mit zufälligem Zeitversatz, Umkre
 Bitte den eigenen API-Key **nicht** im Repository oder in Foren veröffentlichen.
 
 ## Changelog
+
+### 3.9
+- Bundesdurchschnitt: Im Ausweichbetrieb über API v1 und nach einem Fehlschlag wird `/stats` nicht mehr bei jedem Preisabruf erneut angefragt (frühestens nach einer Stunde) – spart Anfragen gegen das Limit von einer pro Minute (Build 14)
+- Ratenlimit wird innerhalb der Sperre geprüft; auch Bundesschnitt und Meldungen an die MTS-K laufen über dieselbe Sperre, sodass parallele Abrufe das Limit nicht mehr überschreiten
+- Gleiche Warnung erscheint nur noch einmal im Meldungsfenster statt bei jedem Abruf
+- Kachel: Aktualisieren-Knopf mit 36 px hoher Klickfläche, Sortenwahl mindestens 36 px; Drehsymbol hört spätestens nach 20 s auf und ruht bei unsichtbarer Kachel; ungültige Sortenwahl schickt den echten Stand zurück
+- Kachel: Farben der Markenkreise aus den Farben der Kachel-Grundlage statt fester Palette
+- Formular-Helfer (`TANK_UpdateLocationForm`, `TANK_UpdateBackgroundForm`, `TANK_LookupPLZ`) sind keine öffentlichen Befehle mehr, das Formular nutzt `RequestAction`
 
 ### 3.8
 - Hausstil: Regel für die Modulliste (`vendor` gesetzt, höchstens ein Alias) in `STYLEGUIDE.md` und Strukturprüfung ergänzt; Modulliste: Tankstellen erscheint nur noch einmal statt zusätzlich unter „Spritpreise“ und „Tankerkönig“ (Build 13)

@@ -44,6 +44,7 @@ class Tankstellen extends IPSModuleStrict
     private const MIN_GAP        = 60;       // Sekunden – Tankerkönig: max. 1 Anfrage pro Minute je API-Key
     private const STATS_MAX_AGE  = 21600;    // 6 Stunden – Bundesdurchschnitt ändert sich langsam
     private const LEGACY_RETRY   = 86400;    // nach Ausfall von v4 einen Tag lang v1 nutzen
+    private const STATS_RETRY    = 3600;     // fehlgeschlagener Abruf des Bundesschnitts: frühestens nach 1 Stunde erneut
     private const MAX_RADIUS     = 25;       // km – Grenze der API
     private const MAX_RESPONSE   = 2097152;  // 2 MB
     private const MAX_IMAGE      = 3145728;  // 3 MB – größere Bilder bremsen die Kachel
@@ -108,6 +109,7 @@ class Tankstellen extends IPSModuleStrict
         $this->RegisterAttributeString('Stats', '{}');
         $this->RegisterAttributeInteger('LastRequest', 0);   // jede Anfrage an Tankerkönig (Ratenlimit)
         $this->RegisterAttributeInteger('LegacyUntil', 0);
+        $this->RegisterAttributeInteger('StatsAttempt', 0); // letzter Versuch, den Bundesschnitt zu holen
         $this->RegisterAttributeString('LastError', '');
 
         $this->RegisterTimer('Update', 0, 'TANK_Update($_IPS[\'TARGET\']);');
@@ -160,6 +162,7 @@ class Tankstellen extends IPSModuleStrict
             case 'FuelType':
                 $index = filter_var($Value, FILTER_VALIDATE_INT);
                 if ($index === false || !in_array($index, $this->EnabledFuelIndexes(), true)) {
+                    $this->Publish(); // Kachel hat schon umgeschaltet – echten Stand zurückschicken
                     throw new Exception($this->Translate('Ungültige oder deaktivierte Kraftstoffart'));
                 }
                 $this->SetValue('FuelType', $index);
@@ -172,6 +175,19 @@ class Tankstellen extends IPSModuleStrict
                 } else {
                     $this->Publish();
                 }
+                break;
+
+            // Formular (nur intern)
+            case 'FormLocation':
+                $this->UpdateLocationForm((int) $Value);
+                break;
+
+            case 'FormBackground':
+                $this->UpdateBackgroundForm((int) $Value);
+                break;
+
+            case 'LookupPLZ':
+                $this->LookupPLZ((string) $Value);
                 break;
 
             default:
@@ -199,10 +215,17 @@ class Tankstellen extends IPSModuleStrict
 
         $lock = 'TANK_Update_' . $this->InstanceID;
         if (!IPS_SemaphoreEnter($lock, 15000)) {
+            $this->Publish(); // Kachel wartet evtl. auf Antwort (Drehsymbol)
             return false;
         }
 
         try {
+            // Erst hier verbindlich prüfen: Ein paralleler Abruf kann gerade angefragt haben, während wir warteten
+            if (!$this->RequestAllowed()) {
+                $this->SetTimerInterval('Update', (self::MIN_GAP + 5) * 1000);
+                $this->Publish();
+                return false;
+            }
             $location = $this->ResolveLocation();
             if ($location === null) {
                 $this->SetStatus(self::STATUS_NO_LOCATION);
@@ -249,15 +272,24 @@ class Tankstellen extends IPSModuleStrict
         if (!$this->ReadPropertyBoolean('EnableNational') || !$this->ValidateConfig()) {
             return false;
         }
-        if (!$this->RequestAllowed()) {
+        $lock = 'TANK_Update_' . $this->InstanceID;
+        if (!IPS_SemaphoreEnter($lock, 15000)) {
             $this->SetTimerInterval('Stats', (self::MIN_GAP + 5) * 1000);
             return false;
         }
-
-        [$code, $body] = $this->HttpRequest(self::API_V4 . '/stats?' . http_build_query(['apikey' => $this->ApiKey()]));
+        try {
+            if (!$this->RequestAllowed()) {
+                $this->SetTimerInterval('Stats', (self::MIN_GAP + 5) * 1000);
+                return false;
+            }
+            $this->WriteAttributeInteger('StatsAttempt', time());
+            [$code, $body] = $this->HttpRequest(self::API_V4 . '/stats?' . http_build_query(['apikey' => $this->ApiKey()]));
+        } finally {
+            IPS_SemaphoreLeave($lock);
+        }
         $data = $body !== null ? json_decode($body, true) : null;
         if ($code !== 200 || !is_array($data)) {
-            $this->SendDebug('Stats', 'nicht verfügbar (HTTP ' . $code . ')', 0);
+            $this->SendDebug('Stats', 'nicht verfügbar (HTTP ' . $code . ') – nächster Versuch frühestens in ' . (self::STATS_RETRY / 60) . ' Minuten', 0);
             return false;
         }
 
@@ -289,14 +321,22 @@ class Tankstellen extends IPSModuleStrict
         if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $StationID) || !in_array($Type, self::COMPLAINT_TYPES, true)) {
             throw new Exception($this->Translate('Ungültige Station oder ungültiger Meldungstyp'));
         }
-        if (!$this->RequestAllowed()) {
-            throw new Exception($this->Translate('Bitte eine Minute warten (Tankerkönig erlaubt eine Anfrage pro Minute).'));
-        }
         $fields = ['apikey' => $this->ApiKey(), 'id' => $StationID, 'type' => $Type];
         if ($Correction !== '') {
             $fields['correction'] = mb_substr($Correction, 0, 100);
         }
-        [$code, $body] = $this->HttpRequest(self::API_V1 . '/complaint.php', $fields);
+        $lock = 'TANK_Update_' . $this->InstanceID;
+        if (!IPS_SemaphoreEnter($lock, 15000)) {
+            throw new Exception($this->Translate('Bitte eine Minute warten (Tankerkönig erlaubt eine Anfrage pro Minute).'));
+        }
+        try {
+            if (!$this->RequestAllowed()) {
+                throw new Exception($this->Translate('Bitte eine Minute warten (Tankerkönig erlaubt eine Anfrage pro Minute).'));
+            }
+            [$code, $body] = $this->HttpRequest(self::API_V1 . '/complaint.php', $fields);
+        } finally {
+            IPS_SemaphoreLeave($lock);
+        }
         $data = $body !== null ? json_decode($body, true) : null;
         return $code === 200 && is_array($data) && ($data['ok'] ?? false) === true;
     }
@@ -316,7 +356,7 @@ class Tankstellen extends IPSModuleStrict
         return $this->BuildFuelResult($index)['stations'];
     }
 
-    public function LookupPLZ(string $PLZ): void
+    private function LookupPLZ(string $PLZ): void
     {
         $coords = $this->Geocode(trim($PLZ));
         echo $coords === null
@@ -324,13 +364,13 @@ class Tankstellen extends IPSModuleStrict
             : sprintf($this->Translate('PLZ %s gefunden: %s, %s'), trim($PLZ), $coords['lat'], $coords['lon']);
     }
 
-    public function UpdateBackgroundForm(int $Mode): void
+    private function UpdateBackgroundForm(int $Mode): void
     {
         $this->UpdateFormField('BackgroundMedia', 'visible', $Mode === self::BG_MEDIA);
         $this->UpdateFormField('BackgroundRow', 'visible', $Mode !== self::BG_NONE);
     }
 
-    public function UpdateLocationForm(int $Source): void
+    private function UpdateLocationForm(int $Source): void
     {
         $this->UpdateFormField('SymconLocationInfo', 'visible', $Source === self::SOURCE_SYMCON);
         $this->UpdateFormField('Location', 'visible', $Source === self::SOURCE_CUSTOM);
@@ -667,6 +707,14 @@ class Tankstellen extends IPSModuleStrict
         if (!$this->ReadPropertyBoolean('EnableNational')) {
             return;
         }
+        // Ausweichbetrieb über v1: /stats gibt es nur in v4 – nicht bei jedem Zyklus eine fehlschlagende Anfrage verbrauchen
+        if (time() < $this->ReadAttributeInteger('LegacyUntil')) {
+            return;
+        }
+        // Nach einem Fehlschlag nicht bei jedem Preisabruf erneut versuchen
+        if (time() - $this->ReadAttributeInteger('StatsAttempt') < self::STATS_RETRY) {
+            return;
+        }
         $stats = json_decode($this->ReadAttributeString('Stats'), true);
         if (time() - (int) ($stats['fetched'] ?? 0) > self::STATS_MAX_AGE) {
             // zeitversetzt nach dem Preisabruf, damit das Ratenlimit eingehalten wird
@@ -786,7 +834,10 @@ class Tankstellen extends IPSModuleStrict
 
     private function Fail(string $message): bool
     {
-        $this->LogMessage($message, KL_WARNING);
+        // Gleiche Warnung nur einmal ins Meldungsfenster, nicht bei jedem Abruf
+        if ($message !== $this->ReadAttributeString('LastError')) {
+            $this->LogMessage($message, KL_WARNING);
+        }
         $this->WriteAttributeString('LastError', $message);
         $this->Publish();
         return false;

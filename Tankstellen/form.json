@@ -31,7 +31,7 @@
                     "type": "Select",
                     "name": "LocationSource",
                     "caption": "Standortquelle",
-                    "onChange": "TANK_UpdateLocationForm($id, $LocationSource);",
+                    "onChange": "IPS_RequestAction($id, 'FormLocation', $LocationSource);",
                     "options": [
                         {
                             "caption": "Symcon-Standort (Location Control)",
@@ -70,7 +70,7 @@
                         {
                             "type": "Button",
                             "caption": "PLZ prüfen",
-                            "onClick": "TANK_LookupPLZ($id, $PLZ);"
+                            "onClick": "IPS_RequestAction($id, 'LookupPLZ', $PLZ);"
                         }
                     ]
                 },
@@ -256,7 +256,7 @@
                     "type": "Select",
                     "name": "BackgroundMode",
                     "caption": "Hintergrund",
-                    "onChange": "TANK_UpdateBackgroundForm($id, $BackgroundMode);",
+                    "onChange": "IPS_RequestAction($id, 'FormBackground', $BackgroundMode);",
                     "options": [
                         {
                             "caption": "Zapfhahn (mitgeliefert)",
