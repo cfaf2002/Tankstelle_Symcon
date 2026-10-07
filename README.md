@@ -2,7 +2,7 @@
 
 [![IP-Symcon ab 8.1](https://img.shields.io/badge/IP--Symcon-ab_8.1-0b6fb3.svg)](https://www.symcon.de)
 [![Optimiert für Symcon 9.0](https://img.shields.io/badge/optimiert_f%C3%BCr-Symcon_9.0-0b6fb3.svg)](https://www.symcon.de/de/service/dokumentation/installation/migrationen/v81-v90-q1-2026/)
-[![Modul-Version 3.9 (Build 14)](https://img.shields.io/badge/Modul--Version-3.9_(Build_14)-informational.svg)](library.json)
+[![Modul-Version 3.10 (Build 15)](https://img.shields.io/badge/Modul--Version-3.10_(Build_15)-informational.svg)](library.json)
 [![Tests](https://github.com/cfaf2002/Tankstelle_Symcon/actions/workflows/tests.yml/badge.svg)](https://github.com/cfaf2002/Tankstelle_Symcon/actions/workflows/tests.yml)
 [![PHP 8.3 und 8.5](https://img.shields.io/badge/PHP-8.3_%7C_8.5-777bb4.svg?logo=php&logoColor=white)](https://www.php.net)
 [![SDK: IPSModuleStrict](https://img.shields.io/badge/SDK-IPSModuleStrict-success.svg)](https://www.symcon.de/de/service/dokumentation/entwicklerbereich/sdk-tools/sdk-php/module/)
@@ -134,7 +134,7 @@ Ab Werk zeigt die Kachel das mitgelieferte Motiv **Zapfhahn** (SVG, scharf in je
    auf „Hinzufügen“ klicken, den Tankstellen-Namen eintragen (so wie er in der Kachel fett über der Adresse steht)
    und das Bild auswählen. Das Symbol ersetzt dann den farbigen Kreis mit zwei Buchstaben.
 3. Bilder werden nur beim Laden der Kachel übertragen, nicht bei jeder Preisänderung. Auf einem Hintergrundbild
-   ist die Schrift immer hell.
+   ist die Schrift immer hell. Bei den Farbschemas Dunkel und Hell deckt deren Hintergrund das Bild ab, die Schrift folgt dann dem Schema.
 
 > Für die Liste liefert das Modul keine Bilder mit; ohne eigenes Bild zeigt die Kachel ein Kürzel.
 
@@ -209,6 +209,9 @@ für Hausautomation höchstens alle 5 Minuten mit zufälligem Zeitversatz, Umkre
 Bitte den eigenen API-Key **nicht** im Repository oder in Foren veröffentlichen.
 
 ## Changelog
+
+### 3.10
+- Kachel: Mit Hintergrundbild (Zapfhahn oder eigenes Bild) und Farbschema Hell stand weiße Schrift auf hellem Grund. Bei Dunkel/Hell deckt der Hintergrund des Schemas das Bild weiterhin ab, die Schrift kommt jetzt aus den Farben des Schemas; nur im Symcon-Design bleibt helle Schrift auf dem abgedunkelten Bild (Build 15, 07.10.2026)
 
 ### 3.9
 - Bundesdurchschnitt: Im Ausweichbetrieb über API v1 und nach einem Fehlschlag wird `/stats` nicht mehr bei jedem Preisabruf erneut angefragt (frühestens nach einer Stunde) – spart Anfragen gegen das Limit von einer pro Minute (Build 14)

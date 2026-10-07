@@ -208,6 +208,7 @@
     let state = null;
     let selected = null;
     let assets = { background: null, dim: 55, blur: 0, logos: {} };
+    let theme = 0;
     const $ = (id) => document.getElementById(id);
     const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 
@@ -420,7 +421,8 @@
         });
     })();
 
-    // Hintergrundbild anwenden: auf Bildern immer helle Schrift
+    // Hintergrundbild anwenden: auf Bildern immer helle Schrift.
+    // Bei Dunkel/Hell deckt der Hintergrund des Schemas das Bild ab, die Schrift kommt dann aus dem Schema.
     function applyBackground() {
         const bg = $('bg'), shade = $('shade'), root = document.documentElement.style;
         if (assets.background) {
@@ -429,7 +431,7 @@
             bg.style.filter = assets.blur ? 'blur(' + Number(assets.blur) + 'px)' : '';
             root.setProperty('--dim', String(Number(assets.dim) / 100));
             bg.hidden = false; shade.hidden = false;
-            root.setProperty('--fg', '#ffffff');
+            if (theme === 0) root.setProperty('--fg', '#ffffff'); else root.removeProperty('--fg');
         } else {
             bg.hidden = true; shade.hidden = true;
             bg.style.backgroundImage = '';
@@ -442,7 +444,11 @@
         let msg;
         try { msg = typeof data === 'string' ? JSON.parse(data) : data; } catch (e) { return; }
         if (!msg) return;
-        if (typeof msg.theme === 'number') applyTheme(msg.theme);
+        if (typeof msg.theme === 'number' && msg.theme !== theme) {
+            theme = msg.theme;
+            applyTheme(theme);
+            applyBackground();
+        }
         if (msg.assets) {             // Bilder (selten): Hintergrund und Logos
             assets = msg.assets;
             applyBackground();
